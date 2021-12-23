@@ -1,0 +1,8 @@
+sympy
+
+# dev
+black
+mypy
+beartype
+pylint
+loguru
