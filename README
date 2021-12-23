@@ -1,0 +1,8 @@
++---------+
+|Hermitian|
++---------+
+
+Utilities for computing expansions of group-invariant Hermitian-symmetric polynomials of the form
+```
+Φ_Γ(z, \bar{z}) = (1 - \prod_{γ∈Γ}(1 - \langle z, z \rangle_b),
+where Γ is a subgroup of U(a, b).
