@@ -4,5 +4,9 @@
 
 Utilities for computing expansions of group-invariant Hermitian-symmetric polynomials of the form
 ```
-Φ_Γ(z, \bar{z}) = (1 - \prod_{γ∈Γ}(1 - \langle z, z \rangle_b),
-where Γ is a subgroup of U(a, b).
+Φ_Γ(z, \bar{z}) = (1 - \prod_{γ∈Γ}(1 - \langle γz, z \rangle_b),
+```
+where Γ is a finite cyclic subgroup of U(a, b), and
+```
+\langle z, w \rangle_b := \sum_{j = 1}^a z_j \overline{w_j} \sum_{j = a + 1}^{a + b} z_j \overline{w_j}.
+```
