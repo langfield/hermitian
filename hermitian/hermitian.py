@@ -113,30 +113,23 @@ def get_I_ab(a: int, b: int) -> ImmutableMatrix:
 
 def main() -> None:
 
-    # EXAMPLE PARAMETERS
-    p = 6
-    a = 1
-    b = 2
-    q_1 = 2
-    q_2 = 3
-    q_3 = 5
-    q = [q_1, q_2, q_3]
-
-    MAX_N = 20
-    MAX_P = 10
+    MAX_N = 8
+    MAX_P = 9
+    assert MAX_N <= MAX_P - 1
 
     for n in range(1, MAX_N):
         for a in range(n + 1):
             b = n - a
-            for p in range(MAX_P):
+            for p in range(n + 1, MAX_P):
+                assert n <= p - 1, f"avail combs: {len(list(itertools.combinations(range(1,p), n)))}"
                 for q in itertools.combinations(range(1, p), n):
                     primitive_roots = get_primitive_pth_roots_of_unity(p)
+                    logger.info(f"Checking n={n}, a={a}, b={b}, p={p}, q={q}")
                     for omega in primitive_roots:
-                        logger.info(f"Omega: {omega}")
                         group = get_type_iii_gamma(a, b, p, q, omega)
                         for gamma in group:
                             assert is_in_SU_AB(gamma, a, b)
-                        print(f"Gamma_{{{p};{q}}}:")
+                        logger.info(f"Gamma_{{{p};{q}}}:")
                         sprint(FiniteSet(*group))
 
                         # Only ever try one primitive root because they're all equivalent.
