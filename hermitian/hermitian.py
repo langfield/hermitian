@@ -28,6 +28,13 @@ from sympy.physics.quantum.dagger import Dagger
 from sympy.printing.pretty.pretty import pprint as spprint
 
 
+USE_UNICODE = True
+
+
+def sprint(obj: Expr) -> None:
+    spprint(obj, use_unicode=USE_UNICODE)
+
+
 @beartype
 def get_omega(p: int) -> Expr:
     return exp((2 * pi * I) / p)
@@ -82,10 +89,24 @@ def is_in_SU_AB(matrix: ImmutableMatrix, a: int, b: int) -> bool:
 
     n = shape(matrix)[0]
     assert n == a + b
+    logger.info(f"A:")
+    sprint(matrix)
+    print("")
 
     I_ab = get_I_ab(a, b)
-    spprint(I_ab)
+    logger.info(f"A*:")
+    sprint(Dagger(matrix))
+    print("")
+
+    logger.info(f"A I_{{{a},{b}}}:")
+    sprint(matrix * I_ab)
+    print("")
+
     A_I_ab_A_dagger = matrix * I_ab * Dagger(matrix)
+    logger.info(f"A I_{{{a},{b}}} A*:")
+    sprint(A_I_ab_A_dagger)
+    print("")
+    logger.info("=====================================================================================")
     return A_I_ab_A_dagger == I_ab
 
 
@@ -112,10 +133,13 @@ def main() -> None:
 
     primitive_roots = get_primitive_pth_roots_of_unity(p)
     for omega in primitive_roots:
+        logger.info(f"Omega: {omega}")
         group = get_type_iii_gamma(a, b, p, q, omega)
         for m in group:
             assert is_in_SU_AB(m, a, b)
-        spprint(FiniteSet(*group))
+        print(f"Gamma_{{{p};{q}}}:")
+        sprint(FiniteSet(*group))
+        break
 
 
 if __name__ == "__main__":
