@@ -121,7 +121,7 @@ def main() -> None:
         for a in range(n + 1):
             b = n - a
             for p in range(n + 1, MAX_P):
-                assert n <= p - 1, f"avail combs: {len(list(itertools.combinations(range(1,p), n)))}"
+                assert n <= p - 1
                 for q in itertools.combinations(range(1, p), n):
                     primitive_roots = get_primitive_pth_roots_of_unity(p)
                     logger.info(f"Checking n={n}, a={a}, b={b}, p={p}, q={q}")
