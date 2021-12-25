@@ -93,8 +93,8 @@ def is_in_SU_AB(matrix: ImmutableMatrix, a: int, b: int) -> bool:
     assert n == a + b
 
     I_ab = get_I_ab(a, b)
-    A_I_ab_A_dagger = matrix * I_ab * Dagger(matrix)
-    return A_I_ab_A_dagger == I_ab
+    A_dagger_I_ab_A = Dagger(matrix) * I_ab * matrix
+    return A_dagger_I_ab_A == I_ab
 
 
 @beartype
