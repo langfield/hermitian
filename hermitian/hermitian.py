@@ -2,7 +2,6 @@
 import math
 import pprint
 import itertools
-from typing import List, Tuple, Dict, Any, Optional
 from functools import wraps
 
 from loguru import logger
@@ -25,11 +24,20 @@ from sympy import (
     Number,
     FiniteSet,
 )
-from sympy.matrices import Matrix, ImmutableMatrix, BlockMatrix, ZeroMatrix, Identity
+from sympy.matrices import (
+    Matrix,
+    ImmutableMatrix,
+    BlockMatrix,
+    ZeroMatrix,
+    Identity,
+    MatrixSymbol,
+    MatrixExpr,
+)
 from sympy.functions import exp
 from sympy.physics.quantum.dagger import Dagger
 from sympy.printing.pretty.pretty import pprint as spprint
 
+from aliases import List, Tuple, Dict, Any, Callable, Optional
 
 USE_UNICODE = True
 
@@ -118,47 +126,119 @@ def get_I_ab(a: int, b: int) -> ImmutableMatrix:
 
 @beartype
 def get_hyperquadric_hermitian_inner_product(
-    z: ImmutableMatrix, w: ImmutableMatrix, a: int, b: int
+    z: MatrixExpr, w: MatrixExpr, a: int, b: int
 ) -> Expr:
     """Compute \langle z, w \rangle_{a,b}."""
     # Check that z, w are column vectors.
-    assert len(shape(z)) == 1 and len(shape(w)) == 1
+    if not (len(shape(z)) == 2 and len(shape(w)) == 2):
+        raise ValueError(f"Shapes should be length 2: shape(z): {shape(z)}| shape(w): {shape(w)}")
     assert shape(z) == shape(w)
+    assert shape(z)[1] == 1
 
     n = shape(z)[0]
     assert n == a + b
 
+    # DEBUG
+    z = Matrix(z)
+    w = Matrix(w)
+
     result = Integer(0)
     for j in range(a):
-        result += z.row(j) * conjugate(w.row(j))
+        entries: List[Expr] = (z.row(j) * conjugate(w.row(j))).values()
+        assert len(entries) == 1
+
+        summand = entries[0]
+        result += summand
     for j in range(a, a + b):
-        result -= z.row(j) * conjugate(w.row(j))
+        entries: List[Expr] = (z.row(j) * conjugate(w.row(j))).values()
+        assert len(entries) == 1
+
+        summand = entries[0]
+        result -= summand
+
     return result
 
 
-def main() -> None:
+@beartype
+def get_phi_gamma_product(group: List[ImmutableMatrix], a: int, b: int) -> Expr:
+    p = len(group)
+    assert p > 0
 
-    MAX_N = 8
-    MAX_P = 9
-    assert MAX_N <= MAX_P - 1
+    e = group[0]
+    assert len(shape(e)) == 2
+    assert shape(e)[0] == shape(e)[1]
 
-    for n in range(1, MAX_N):
+    n = shape(e)[0]
+    assert n == a + b
+
+    z = MatrixSymbol("z", n, 1)
+    result = Integer(1)
+    for gamma in group:
+        result *= 1 - get_hyperquadric_hermitian_inner_product(gamma * z, z, a, b)
+    return result
+
+
+@beartype
+def check_type_iii_gamma_is_subset_of_SU_AB(
+    a: int, b: int, p: int, q: Tuple[int, ...]
+) -> None:
+    """Check that type III gamma groups are always subgroups of SU(A,B) for appropriate values of A, B."""
+    primitive_roots = get_primitive_pth_roots_of_unity(p)
+    logger.info(f"Checking n={a + b}, a={a}, b={b}, p={p}, q={q}")
+    for omega in primitive_roots:
+        group = get_type_iii_gamma(a, b, p, q, omega)
+        for gamma in group:
+            assert is_in_SU_AB(gamma, a, b)
+        logger.info(f"Gamma_{{{p};{q}}}:")
+        sprint(FiniteSet(*group))
+
+        # Only ever try one primitive root because they're all equivalent.
+        break
+
+
+@beartype
+def check_phi_gamma_product_functions_correctly(
+    a: int, b: int, p: int, q: Tuple[int, ...]
+) -> None:
+    primitive_roots = get_primitive_pth_roots_of_unity(p)
+    assert len(primitive_roots) > 0
+
+    logger.info(f"Checking n={a + b}, a={a}, b={b}, p={p}, q={q}")
+
+    omega = primitive_roots[0]
+    group = get_type_iii_gamma(a, b, p, q, omega)
+    phi_gamma_expansion: Expr = get_phi_gamma_product(group, a, b)
+    logger.info(f"Phi_gamma:")
+    sprint(phi_gamma_expansion)
+
+
+@beartype
+def run_experiment_with_fuzzed_parameters_a_b_p_q(
+    experiment: Callable[[int, int, int, Tuple[int, ...]], None], max_n: int, max_p: int
+) -> None:
+    """Check that type III gamma groups are always subgroups of SU(A,B) for appropriate values of A, B."""
+    assert max_n <= max_p - 1
+
+    for n in range(1, max_n):
         for a in range(n + 1):
             b = n - a
-            for p in range(n + 1, MAX_P):
+            for p in range(n + 1, max_p):
                 assert n <= p - 1
                 for q in itertools.combinations(range(1, p), n):
-                    primitive_roots = get_primitive_pth_roots_of_unity(p)
-                    logger.info(f"Checking n={n}, a={a}, b={b}, p={p}, q={q}")
-                    for omega in primitive_roots:
-                        group = get_type_iii_gamma(a, b, p, q, omega)
-                        for gamma in group:
-                            assert is_in_SU_AB(gamma, a, b)
-                        logger.info(f"Gamma_{{{p};{q}}}:")
-                        sprint(FiniteSet(*group))
+                    experiment(a, b, p, q)
 
-                        # Only ever try one primitive root because they're all equivalent.
-                        break
+
+def main() -> None:
+    MAX_N = 5
+    MAX_P = 6
+    run_experiment_with_fuzzed_parameters_a_b_p_q(
+        check_phi_gamma_product_functions_correctly, max_n=MAX_N, max_p=MAX_P
+    )
+    exit(0)
+
+    run_experiment_with_fuzzed_parameters_a_b_p_q(
+        check_type_iii_gamma_is_subset_of_SU_AB, max_n=MAX_N, max_p=MAX_P
+    )
 
 
 if __name__ == "__main__":
