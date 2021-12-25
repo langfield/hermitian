@@ -10,6 +10,7 @@ from beartype import beartype
 
 import sympy
 from sympy import (
+    conjugate,
     prime,
     simplify,
     init_printing,
@@ -87,10 +88,13 @@ def get_type_iii_gamma(
 
 @beartype
 def is_in_SU_AB(matrix: ImmutableMatrix, a: int, b: int) -> bool:
-    assert matrix.is_square
+    """Check if a matrix is in SU(a,b)."""
+    if not matrix.is_square:
+        return False
 
     n = shape(matrix)[0]
-    assert n == a + b
+    if not n == a + b:
+        return False
 
     I_ab = get_I_ab(a, b)
     A_dagger_I_ab_A = Dagger(matrix) * I_ab * matrix
@@ -99,6 +103,7 @@ def is_in_SU_AB(matrix: ImmutableMatrix, a: int, b: int) -> bool:
 
 @beartype
 def get_I_ab(a: int, b: int) -> ImmutableMatrix:
+    """Compute the generalized identity matrix I_{a,b}."""
     n = a + b
     assert n > 0
     if a == 0:
@@ -109,6 +114,26 @@ def get_I_ab(a: int, b: int) -> ImmutableMatrix:
         [[Identity(a), ZeroMatrix(a, b)], [ZeroMatrix(b, a), -Identity(b)]]
     )
     return I_ab.as_explicit()
+
+
+@beartype
+def get_hyperquadric_hermitian_inner_product(
+    z: ImmutableMatrix, w: ImmutableMatrix, a: int, b: int
+) -> Expr:
+    """Compute \langle z, w \rangle_{a,b}."""
+    # Check that z, w are column vectors.
+    assert len(shape(z)) == 1 and len(shape(w)) == 1
+    assert shape(z) == shape(w)
+
+    n = shape(z)[0]
+    assert n == a + b
+
+    result = Integer(0)
+    for j in range(a):
+        result += z.row(j) * conjugate(w.row(j))
+    for j in range(a, a + b):
+        result -= z.row(j) * conjugate(w.row(j))
+    return result
 
 
 def main() -> None:
