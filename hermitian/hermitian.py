@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import math
+import copy
 import pprint
 import itertools
 from functools import wraps
@@ -9,6 +10,7 @@ from beartype import beartype
 
 import sympy
 from sympy import (
+    expand,
     conjugate,
     prime,
     simplify,
@@ -23,6 +25,7 @@ from sympy import (
     Integer,
     Number,
     FiniteSet,
+    Symbol,
 )
 from sympy.matrices import (
     Matrix,
@@ -126,12 +129,14 @@ def get_I_ab(a: int, b: int) -> ImmutableMatrix:
 
 @beartype
 def get_hyperquadric_hermitian_inner_product(
-    z: MatrixExpr, w: MatrixExpr, a: int, b: int
+    z: Matrix, w: Matrix, a: int, b: int
 ) -> Expr:
     """Compute \langle z, w \rangle_{a,b}."""
     # Check that z, w are column vectors.
     if not (len(shape(z)) == 2 and len(shape(w)) == 2):
-        raise ValueError(f"Shapes should be length 2: shape(z): {shape(z)}| shape(w): {shape(w)}")
+        raise ValueError(
+            f"Shapes should be length 2: shape(z): {shape(z)}| shape(w): {shape(w)}"
+        )
     assert shape(z) == shape(w)
     assert shape(z)[1] == 1
 
@@ -160,7 +165,9 @@ def get_hyperquadric_hermitian_inner_product(
 
 
 @beartype
-def get_phi_gamma_product(group: List[ImmutableMatrix], a: int, b: int) -> Expr:
+def get_phi_gamma_product(
+    z: Matrix, group: List[ImmutableMatrix], a: int, b: int
+) -> Expr:
     p = len(group)
     assert p > 0
 
@@ -171,7 +178,6 @@ def get_phi_gamma_product(group: List[ImmutableMatrix], a: int, b: int) -> Expr:
     n = shape(e)[0]
     assert n == a + b
 
-    z = MatrixSymbol("z", n, 1)
     result = Integer(1)
     for gamma in group:
         result *= 1 - get_hyperquadric_hermitian_inner_product(gamma * z, z, a, b)
@@ -200,6 +206,9 @@ def check_type_iii_gamma_is_subset_of_SU_AB(
 def check_phi_gamma_product_functions_correctly(
     a: int, b: int, p: int, q: Tuple[int, ...]
 ) -> None:
+    z_symbol = MatrixSymbol("z", a + b, 1)
+    z = Matrix(z_symbol)
+
     primitive_roots = get_primitive_pth_roots_of_unity(p)
     assert len(primitive_roots) > 0
 
@@ -207,20 +216,38 @@ def check_phi_gamma_product_functions_correctly(
 
     omega = primitive_roots[0]
     group = get_type_iii_gamma(a, b, p, q, omega)
-    phi_gamma_expansion: Expr = get_phi_gamma_product(group, a, b)
+    phi_gamma: Expr = get_phi_gamma_product(z, group, a, b)
     logger.info(f"Phi_gamma:")
-    sprint(phi_gamma_expansion)
+    sprint(phi_gamma)
+
+    phi_gamma_x: Expr = get_theta_x_from_phi_gamma(phi_gamma, z, z_symbol, a, b)
+    logger.info(f"Phi_gamma_x:")
+    sprint(phi_gamma_x)
+    phi_gamma_x = expand(phi_gamma_x)
+    logger.info(f"Phi_gamma_x (expanded):")
+    sprint(phi_gamma_x)
+
+@beartype
+def get_theta_x_from_phi_gamma(phi_gamma: Expr, z: Matrix, z_symbol: Expr, a: int, b: int) -> Expr:
+    x = symbols(f"x0:{a + b}")
+    phi_gamma_x = copy.deepcopy(phi_gamma)
+    for j, x_j in enumerate(x):
+        assert z_symbol in phi_gamma_x.free_symbols
+        phi_gamma_x = phi_gamma_x.subs(conjugate(z[j, 0]) * z[j, 0], x_j)
+
+    assert z_symbol not in phi_gamma_x.free_symbols
+    return phi_gamma_x
 
 
 @beartype
 def run_experiment_with_fuzzed_parameters_a_b_p_q(
-    experiment: Callable[[int, int, int, Tuple[int, ...]], None], max_n: int, max_p: int
+    experiment: Callable[[int, int, int, Tuple[int, ...]], None], max_n: int, max_p: int, min_a: int = 0, min_b: int = 0,
 ) -> None:
-    """Check that type III gamma groups are always subgroups of SU(A,B) for appropriate values of A, B."""
+    """Run an experiment for many values of a,b,p,q."""
     assert max_n <= max_p - 1
 
     for n in range(1, max_n):
-        for a in range(n + 1):
+        for a in range(min_a, n + 1 - min_b):
             b = n - a
             for p in range(n + 1, max_p):
                 assert n <= p - 1
@@ -229,10 +256,10 @@ def run_experiment_with_fuzzed_parameters_a_b_p_q(
 
 
 def main() -> None:
-    MAX_N = 5
-    MAX_P = 6
+    MAX_N = 4
+    MAX_P = 5
     run_experiment_with_fuzzed_parameters_a_b_p_q(
-        check_phi_gamma_product_functions_correctly, max_n=MAX_N, max_p=MAX_P
+        check_phi_gamma_product_functions_correctly, max_n=MAX_N, max_p=MAX_P, min_a=1, min_b=1
     )
     exit(0)
 
