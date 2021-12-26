@@ -10,6 +10,7 @@ from beartype import beartype
 
 import sympy
 from sympy import (
+    latex,
     expand,
     conjugate,
     prime,
@@ -203,7 +204,7 @@ def check_type_iii_gamma_is_subset_of_SU_AB(
 
 
 @beartype
-def check_phi_gamma_product_functions_correctly(
+def check_phi_gamma_product(
     a: int, b: int, p: int, q: Tuple[int, ...]
 ) -> None:
     z_symbol = MatrixSymbol("z", a + b, 1)
@@ -218,14 +219,21 @@ def check_phi_gamma_product_functions_correctly(
     group = get_type_iii_gamma(a, b, p, q, omega)
     phi_gamma: Expr = get_phi_gamma_product(z, group, a, b)
     logger.info(f"Phi_gamma:")
+    print(latex(phi_gamma))
     sprint(phi_gamma)
 
     phi_gamma_x: Expr = get_theta_x_from_phi_gamma(phi_gamma, z, z_symbol, a, b)
     logger.info(f"Phi_gamma_x:")
+    print(latex(phi_gamma_x))
     sprint(phi_gamma_x)
     phi_gamma_x = expand(phi_gamma_x)
     logger.info(f"Phi_gamma_x (expanded):")
-    sprint(phi_gamma_x)
+    with open("a.jax", "w") as jax_file:
+        jax = latex(phi_gamma_x)
+        jax_file.write(jax)
+
+    # sprint(phi_gamma_x)
+    logger.info(f" ^^^^^ Checking n={a + b}, a={a}, b={b}, p={p}, q={q}")
 
 @beartype
 def get_theta_x_from_phi_gamma(phi_gamma: Expr, z: Matrix, z_symbol: Expr, a: int, b: int) -> Expr:
@@ -244,12 +252,12 @@ def run_experiment_with_fuzzed_parameters_a_b_p_q(
     experiment: Callable[[int, int, int, Tuple[int, ...]], None], max_n: int, max_p: int, min_a: int = 0, min_b: int = 0,
 ) -> None:
     """Run an experiment for many values of a,b,p,q."""
-    assert max_n <= max_p - 1
+    assert max_n - 1 <= max_p
 
-    for n in range(1, max_n):
+    for n in range(1, max_n + 1):
         for a in range(min_a, n + 1 - min_b):
             b = n - a
-            for p in range(n + 1, max_p):
+            for p in range(n + 1, max_p + 1):
                 assert n <= p - 1
                 for q in itertools.combinations(range(1, p), n):
                     experiment(a, b, p, q)
@@ -259,7 +267,7 @@ def main() -> None:
     MAX_N = 4
     MAX_P = 5
     run_experiment_with_fuzzed_parameters_a_b_p_q(
-        check_phi_gamma_product_functions_correctly, max_n=MAX_N, max_p=MAX_P, min_a=1, min_b=1
+        check_phi_gamma_product, max_n=MAX_N, max_p=MAX_P, min_a=1, min_b=1
     )
     exit(0)
 
