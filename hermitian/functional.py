@@ -41,7 +41,7 @@ from sympy.functions import exp
 from sympy.physics.quantum.dagger import Dagger
 from sympy.printing.pretty.pretty import pprint as spprint
 
-from aliases import List, Tuple, Dict, Any, Callable, Optional
+from hermitian.aliases import List, Tuple, Dict, Any, Callable, Optional
 
 USE_UNICODE = True
 
@@ -132,7 +132,7 @@ def get_I_ab(a: int, b: int) -> ImmutableMatrix:
 def get_hyperquadric_hermitian_inner_product(
     z: Matrix, w: Matrix, a: int, b: int
 ) -> Expr:
-    """Compute \langle z, w \rangle_{a,b}."""
+    r"""Compute \langle z, w \rangle_{a,b}."""
     # Check that z, w are column vectors.
     if not (len(shape(z)) == 2 and len(shape(w)) == 2):
         raise ValueError(
@@ -186,57 +186,29 @@ def get_phi_gamma_product(
 
 
 @beartype
-def check_type_iii_gamma_is_subset_of_SU_AB(
-    a: int, b: int, p: int, q: Tuple[int, ...]
-) -> None:
-    """Check that type III gamma groups are always subgroups of SU(A,B) for appropriate values of A, B."""
-    primitive_roots = get_primitive_pth_roots_of_unity(p)
-    logger.info(f"Checking n={a + b}, a={a}, b={b}, p={p}, q={q}")
-    for omega in primitive_roots:
-        group = get_type_iii_gamma(a, b, p, q, omega)
-        for gamma in group:
-            assert is_in_SU_AB(gamma, a, b)
-        logger.info(f"Gamma_{{{p};{q}}}:")
-        sprint(FiniteSet(*group))
+def get_phi_gamma_product_polarized(
+    z: Matrix, w: Matrix, group: List[ImmutableMatrix], a: int, b: int
+) -> Expr:
+    p = len(group)
+    assert p > 0
 
-        # Only ever try one primitive root because they're all equivalent.
-        break
+    e = group[0]
+    assert len(shape(e)) == 2
+    assert shape(e)[0] == shape(e)[1]
 
+    n = shape(e)[0]
+    assert n == a + b
 
-@beartype
-def check_phi_gamma_product(
-    a: int, b: int, p: int, q: Tuple[int, ...]
-) -> None:
-    z_symbol = MatrixSymbol("z", a + b, 1)
-    z = Matrix(z_symbol)
+    result = Integer(1)
+    for gamma in group:
+        result *= 1 - get_hyperquadric_hermitian_inner_product(gamma * z, w, a, b)
+    return result
 
-    primitive_roots = get_primitive_pth_roots_of_unity(p)
-    assert len(primitive_roots) > 0
-
-    logger.info(f"Checking n={a + b}, a={a}, b={b}, p={p}, q={q}")
-
-    omega = primitive_roots[0]
-    group = get_type_iii_gamma(a, b, p, q, omega)
-    phi_gamma: Expr = get_phi_gamma_product(z, group, a, b)
-    logger.info(f"Phi_gamma:")
-    print(latex(phi_gamma))
-    sprint(phi_gamma)
-
-    phi_gamma_x: Expr = get_theta_x_from_phi_gamma(phi_gamma, z, z_symbol, a, b)
-    logger.info(f"Phi_gamma_x:")
-    print(latex(phi_gamma_x))
-    sprint(phi_gamma_x)
-    phi_gamma_x = expand(phi_gamma_x)
-    logger.info(f"Phi_gamma_x (expanded):")
-    with open("a.jax", "w") as jax_file:
-        jax = latex(phi_gamma_x)
-        jax_file.write(jax)
-
-    # sprint(phi_gamma_x)
-    logger.info(f" ^^^^^ Checking n={a + b}, a={a}, b={b}, p={p}, q={q}")
 
 @beartype
-def get_theta_x_from_phi_gamma(phi_gamma: Expr, z: Matrix, z_symbol: Expr, a: int, b: int) -> Expr:
+def get_theta_x_from_phi_gamma(
+    phi_gamma: Expr, z: Matrix, z_symbol: Expr, a: int, b: int
+) -> Expr:
     x = symbols(f"x0:{a + b}")
     phi_gamma_x = copy.deepcopy(phi_gamma)
     for j, x_j in enumerate(x):
@@ -248,8 +220,54 @@ def get_theta_x_from_phi_gamma(phi_gamma: Expr, z: Matrix, z_symbol: Expr, a: in
 
 
 @beartype
+def get_theta_x(a: int, b: int, p: int, q: Tuple[int, ...]) -> Expr:
+    phi_gamma, z, z_symbol = get_phi_gamma_z(a, b, p, q)
+    return get_theta_x_from_phi_gamma(phi_gamma, z, z_symbol, a, b)
+
+
+@beartype
+def get_phi_gamma_z(
+    a: int, b: int, p: int, q: Tuple[int, ...]
+) -> Tuple[Expr, Matrix, Expr]:
+    z_symbol = MatrixSymbol("z", a + b, 1)
+    z = Matrix(z_symbol)
+
+    primitive_roots = get_primitive_pth_roots_of_unity(p)
+    assert len(primitive_roots) > 0
+
+    omega = primitive_roots[0]
+    group = get_type_iii_gamma(a, b, p, q, omega)
+    phi_gamma: Expr = get_phi_gamma_product(z, group, a, b)
+
+    return phi_gamma, z, z_symbol
+
+
+@beartype
+def get_phi_gamma_z_w_polarized(
+    a: int, b: int, p: int, q: Tuple[int, ...]
+) -> Tuple[Expr, Matrix, Matrix, Expr, Expr]:
+    z_symbol = MatrixSymbol("z", a + b, 1)
+    w_symbol = MatrixSymbol("w", a + b, 1)
+    z = Matrix(z_symbol)
+    w = Matrix(w_symbol)
+
+    primitive_roots = get_primitive_pth_roots_of_unity(p)
+    assert len(primitive_roots) > 0
+
+    omega = primitive_roots[0]
+    group = get_type_iii_gamma(a, b, p, q, omega)
+    phi_gamma: Expr = get_phi_gamma_product_polarized(z, w, group, a, b)
+
+    return phi_gamma, z, w, z_symbol, w_symbol
+
+
+@beartype
 def run_experiment_with_fuzzed_parameters_a_b_p_q(
-    experiment: Callable[[int, int, int, Tuple[int, ...]], None], max_n: int, max_p: int, min_a: int = 0, min_b: int = 0,
+    experiment: Callable[[int, int, int, Tuple[int, ...]], None],
+    max_n: int,
+    max_p: int,
+    min_a: int = 0,
+    min_b: int = 0,
 ) -> None:
     """Run an experiment for many values of a,b,p,q."""
     assert max_n - 1 <= max_p
@@ -261,20 +279,3 @@ def run_experiment_with_fuzzed_parameters_a_b_p_q(
                 assert n <= p - 1
                 for q in itertools.combinations(range(1, p), n):
                     experiment(a, b, p, q)
-
-
-def main() -> None:
-    MAX_N = 4
-    MAX_P = 5
-    run_experiment_with_fuzzed_parameters_a_b_p_q(
-        check_phi_gamma_product, max_n=MAX_N, max_p=MAX_P, min_a=1, min_b=1
-    )
-    exit(0)
-
-    run_experiment_with_fuzzed_parameters_a_b_p_q(
-        check_type_iii_gamma_is_subset_of_SU_AB, max_n=MAX_N, max_p=MAX_P
-    )
-
-
-if __name__ == "__main__":
-    main()

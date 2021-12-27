@@ -3,6 +3,8 @@ import sys
 import contextlib
 import collections
 
+# pylint: disable=unused-import
+
 if sys.version_info >= (3, 9):
     Tuple = tuple
     List = list
