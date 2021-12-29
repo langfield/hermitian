@@ -114,10 +114,6 @@ def get_hyperquadric_hermitian_inner_product(
     n = sy.shape(z)[0]
     assert n == a + b
 
-    # DEBUG
-    z = sy.Matrix(z)
-    w = sy.Matrix(w)
-
     result = sy.Integer(0)
     for j in range(a):
         entries: List[sy.Expr] = (z.row(j) * sy.conjugate(w.row(j))).values()
@@ -159,16 +155,20 @@ def get_phi_gamma_product(
 def get_phi_gamma_product_polarized(
     z: sy.Matrix, w: sy.Matrix, group: List[sy.ImmutableMatrix], a: int, b: int
 ) -> sy.Expr:
+    # Group should be nonempty.
     p = len(group)
     assert p > 0
 
+    # Check that the first element is a square matrix.
     e = group[0]
     assert len(sy.shape(e)) == 2
     assert sy.shape(e)[0] == sy.shape(e)[1]
 
+    # Check that the group consists of (a + b) x (a + b) matrices.
     n = sy.shape(e)[0]
     assert n == a + b
 
+    # Compute the indexed product.
     result = sy.Integer(1)
     for gamma in group:
         result *= 1 - get_hyperquadric_hermitian_inner_product(gamma * z, w, a, b)
@@ -216,6 +216,7 @@ def get_phi_gamma_z(
 def get_phi_gamma_z_w_polarized(
     a: int, b: int, p: int, q: Tuple[int, ...]
 ) -> Tuple[sy.Expr, sy.Matrix, sy.Matrix, sy.Expr, sy.Expr]:
+    """Treat bar{z} as an independent variable bar{w}."""
     z_symbol = sy.MatrixSymbol("z", a + b, 1)
     w_symbol = sy.MatrixSymbol("w", a + b, 1)
     z = sy.Matrix(z_symbol)
@@ -228,7 +229,17 @@ def get_phi_gamma_z_w_polarized(
     group = get_type_iii_gamma(a, b, p, q, omega)
     phi_gamma: sy.Expr = get_phi_gamma_product_polarized(z, w, group, a, b)
 
-    return phi_gamma, z, w, z_symbol, w_symbol
+    return sy.simplify(phi_gamma), z, w, z_symbol, w_symbol
+
+
+@beartype
+def get_phi_gamma_z_w_polarized_no_bar(
+    a: int, b: int, p: int, q: Tuple[int, ...]
+) -> Tuple[sy.Expr, sy.Matrix, sy.Matrix, sy.Expr, sy.Expr]:
+    """Treat bar{z} as an independent variable w."""
+    phi_gamma, z, w, z_symbol, w_symbol = get_phi_gamma_z_w_polarized(a, b, p, q)
+
+    return sy.simplify(phi_gamma.subs(w_symbol, sy.conjugate(w_symbol))), z, w, z_symbol, w_symbol
 
 
 @beartype
@@ -243,13 +254,8 @@ def is_hermitian_symmetric_polynomial(
     assert sy.shape(z)[1] == 1
     n = sy.shape(z)[0]
 
-    # Instantiate a dummy variable for the swap.
-    w_prime = sy.MatrixSymbol("w'", n, 1)
-
     # Swap (z, w).
-    f_w_z_bar = f.subs(z, w_prime)
-    f_w_z_bar = f_w_z_bar.subs(w, z)
-    f_w_z_bar = f_w_z_bar.subs(w_prime, w)
+    f_w_z_bar = f.subs([(z, w), (w, z)])
 
     # Complex-conjugate the whole thing.
     f_w_z_bar_conjugate = sy.conjugate(f_w_z_bar)
@@ -264,6 +270,31 @@ def is_hermitian_symmetric_matrix(A: sy.MatrixExpr) -> bool:
     Check whether a matrix is Hermitian symmetric.
     """
     return A.is_symmetric() and A.is_hermitian
+
+
+@beartype
+def get_matrix_of_coefficients(f: sy.Expr) -> sy.MatrixExpr:
+    """Get the matrix of coefficients for a polynomial in terms of the given variables."""
+    symbs = f.free_symbols
+    component_lists: List[List[Expr]] = []
+    for symb in symbs:
+        components = []
+        m = symb.as_explicit()
+        for entry in m:
+            components.append(entry)
+        component_lists.append(components)
+    component_pairs: List[Tuple[Expr]] = list(itertools.product(*component_lists))
+    products: List[Expr] = [pair[0] * pair[1] for pair in component_pairs]
+    logger.info(f"Products:")
+    sprint(products)
+    f = sy.expand(sy.collect(sy.expand(f), products))
+
+    # TODO: Get coeff of all multiindex terms up to degree p.
+    logger.info(f"Collected f:")
+    sprint(f)
+    for prod in products:
+        coeff = f.coeff(prod)
+        logger.info(f"coeff of {prod}: {coeff}")
 
 
 @beartype

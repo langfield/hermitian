@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 from loguru import logger
 from beartype import beartype
 
@@ -12,9 +13,12 @@ from hermitian.functional import (
     get_type_iii_gamma,
     get_phi_gamma_z,
     get_phi_gamma_z_w_polarized,
+    get_phi_gamma_z_w_polarized_no_bar,
     get_theta_x_from_phi_gamma,
     is_hermitian_symmetric_polynomial,
+    is_hermitian_symmetric_matrix,
     run_experiment_with_fuzzed_parameters_a_b_p_q,
+    get_matrix_of_coefficients,
 )
 
 
@@ -33,7 +37,7 @@ def check_type_iii_gamma_is_subset_of_SU_AB(
         for gamma in group:
             assert is_in_SU_AB(gamma, a, b)
         logger.info(f"Gamma_{{{p};{q}}}:")
-        sprint(FiniteSet(*group))
+        sprint(sy.FiniteSet(*group))
 
         # Only ever try one primitive root because they're all equivalent.
         break
@@ -43,18 +47,24 @@ def check_type_iii_gamma_is_subset_of_SU_AB(
 def check_phi_is_hermitian_symmetric(
     a: int, b: int, p: int, q: Tuple[int, ...]
 ) -> None:
-    """Experiment to check that \Phi_\Gamma is Hermitian symmetric."""
+    r"""Experiment to check that \Phi_\Gamma is Hermitian symmetric."""
     # Get the polynomial in terms of (z, w).
     phi_gamma, z, w, z_symbol, w_symbol = get_phi_gamma_z_w_polarized(a, b, p, q)
     logger.info("Phi(z,bar{w}):")
     sprint(phi_gamma)
+    phi_gamma, z, w, z_symbol, w_symbol = get_phi_gamma_z_w_polarized_no_bar(a, b, p, q)
+    logger.info("Phi(z,w):")
+    sprint(phi_gamma)
+    get_matrix_of_coefficients(phi_gamma)
+    sys.exit()
 
     assert is_hermitian_symmetric_polynomial(phi_gamma, z_symbol, w_symbol)
+    # assert is_hermitian_symmetric_matrix(c_alpha_beta)
 
 
 def main() -> None:
-    MAX_N = 6
-    MAX_P = 7
+    MAX_N = 2
+    MAX_P = 3
     run_experiment_with_fuzzed_parameters_a_b_p_q(
         check_phi_is_hermitian_symmetric, max_n=MAX_N, max_p=MAX_P, min_a=1, min_b=1
     )
