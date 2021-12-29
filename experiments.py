@@ -2,7 +2,16 @@
 from loguru import logger
 from beartype import beartype
 
-from sympy import expand, latex, symbols, conjugate, FiniteSet, MatrixSymbol, Matrix, Expr
+from sympy import (
+    expand,
+    latex,
+    symbols,
+    conjugate,
+    FiniteSet,
+    MatrixSymbol,
+    Matrix,
+    Expr,
+)
 
 from hermitian.aliases import Tuple
 from hermitian.functional import (
@@ -45,7 +54,7 @@ def check_phi_is_hermitian_symmmetric(
 ) -> None:
     """Experiment to check that \Phi_\Gamma is Hermitian symmetric."""
     # Get the polynomial in terms of (z, w).
-    phi_gamma, z, w, z_symbol, w_symbol = get_phi_gamma_z_w_polarized(a,b,p,q)
+    phi_gamma, z, w, z_symbol, w_symbol = get_phi_gamma_z_w_polarized(a, b, p, q)
     logger.info("Phi(z,bar{w}):")
     sprint(phi_gamma)
 

@@ -286,7 +286,6 @@ def is_hermitian_symmetric(f: Expr, z: MatrixSymbol, w: MatrixSymbol) -> bool:
     return f == f_w_z_bar_conjugate
 
 
-
 @beartype
 def run_experiment_with_fuzzed_parameters_a_b_p_q(
     experiment: Callable[[int, int, int, Tuple[int, ...]], None],
