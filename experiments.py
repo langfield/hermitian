@@ -13,6 +13,7 @@ from hermitian.functional import (
     get_phi_gamma_z,
     get_phi_gamma_z_w_polarized,
     get_theta_x_from_phi_gamma,
+    is_hermitian_symmetric,
     run_experiment_with_fuzzed_parameters_a_b_p_q,
 )
 
@@ -41,35 +42,19 @@ def check_type_iii_gamma_is_subset_of_SU_AB(
 @beartype
 def check_phi_is_hermitian_symmmetric(
     a: int, b: int, p: int, q: Tuple[int, ...]
-) -> bool:
+) -> None:
+    """Experiment to check that \Phi_\Gamma is Hermitian symmetric."""
     # Get the polynomial in terms of (z, w).
     phi_gamma, z, w, z_symbol, w_symbol = get_phi_gamma_z_w_polarized(a,b,p,q)
     logger.info("Phi(z,bar{w}):")
     sprint(phi_gamma)
 
-    # Make some dummy symbols.
-    z_prime_symbol = MatrixSymbol("z'", a + b, 1)
-    w_prime_symbol = MatrixSymbol("w'", a + b, 1)
-
-    # Swap (z, w).
-    phi_gamma_w_z_bar = phi_gamma.subs(z_symbol, w_prime_symbol)
-    phi_gamma_w_z_bar = phi_gamma_w_z_bar.subs(w_symbol, z_symbol)
-    phi_gamma_w_z_bar = phi_gamma_w_z_bar.subs(w_prime_symbol, w_symbol)
-    logger.info("Phi(w,bar{z}):")
-    sprint(phi_gamma_w_z_bar)
-
-    # Complex-conjugate the whole thing.
-    phi_gamma_w_z_bar_conjugate = conjugate(phi_gamma_w_z_bar)
-    logger.info("overline{Phi(w,bar{z})}:")
-    sprint(phi_gamma_w_z_bar_conjugate)
-
-    # Return truth value of whether the polynomial is Hermitian symmetric.
-    return phi_gamma == phi_gamma_w_z_bar_conjugate
+    assert is_hermitian_symmetric(phi_gamma, z_symbol, w_symbol)
 
 
 def main() -> None:
-    MAX_N = 2
-    MAX_P = 3
+    MAX_N = 6
+    MAX_P = 7
     run_experiment_with_fuzzed_parameters_a_b_p_q(
         check_phi_is_hermitian_symmmetric, max_n=MAX_N, max_p=MAX_P, min_a=1, min_b=1
     )

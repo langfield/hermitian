@@ -262,6 +262,32 @@ def get_phi_gamma_z_w_polarized(
 
 
 @beartype
+def is_hermitian_symmetric(f: Expr, z: MatrixSymbol, w: MatrixSymbol) -> bool:
+    """
+    Check whether a function of two complex vector variables is Hermitian symmetric.
+    """
+    assert shape(z) == shape(w)
+    assert len(shape(z)) == 2
+    assert shape(z)[1] == 1
+    n = shape(z)[0]
+
+    # Instantiate a dummy variable for the swap.
+    w_prime = MatrixSymbol("w'", n, 1)
+
+    # Swap (z, w).
+    f_w_z_bar = f.subs(z, w_prime)
+    f_w_z_bar = f_w_z_bar.subs(w, z)
+    f_w_z_bar = f_w_z_bar.subs(w_prime, w)
+
+    # Complex-conjugate the whole thing.
+    f_w_z_bar_conjugate = conjugate(f_w_z_bar)
+
+    # Return truth value of whether the polynomial is Hermitian symmetric.
+    return f == f_w_z_bar_conjugate
+
+
+
+@beartype
 def run_experiment_with_fuzzed_parameters_a_b_p_q(
     experiment: Callable[[int, int, int, Tuple[int, ...]], None],
     max_n: int,
