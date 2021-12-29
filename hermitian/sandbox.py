@@ -1,4 +1,4 @@
-from hermitian.functional import check_phi_gamma_product
+from hermitian.functional import get_phi_gamma_z
 
 
 def main() -> None:

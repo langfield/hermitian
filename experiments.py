@@ -2,16 +2,7 @@
 from loguru import logger
 from beartype import beartype
 
-from sympy import (
-    expand,
-    latex,
-    symbols,
-    conjugate,
-    FiniteSet,
-    MatrixSymbol,
-    Matrix,
-    Expr,
-)
+import sympy as sy
 
 from hermitian.aliases import Tuple
 from hermitian.functional import (
@@ -22,7 +13,7 @@ from hermitian.functional import (
     get_phi_gamma_z,
     get_phi_gamma_z_w_polarized,
     get_theta_x_from_phi_gamma,
-    is_hermitian_symmetric,
+    is_hermitian_symmetric_polynomial,
     run_experiment_with_fuzzed_parameters_a_b_p_q,
 )
 
@@ -49,7 +40,7 @@ def check_type_iii_gamma_is_subset_of_SU_AB(
 
 
 @beartype
-def check_phi_is_hermitian_symmmetric(
+def check_phi_is_hermitian_symmetric(
     a: int, b: int, p: int, q: Tuple[int, ...]
 ) -> None:
     """Experiment to check that \Phi_\Gamma is Hermitian symmetric."""
@@ -58,14 +49,14 @@ def check_phi_is_hermitian_symmmetric(
     logger.info("Phi(z,bar{w}):")
     sprint(phi_gamma)
 
-    assert is_hermitian_symmetric(phi_gamma, z_symbol, w_symbol)
+    assert is_hermitian_symmetric_polynomial(phi_gamma, z_symbol, w_symbol)
 
 
 def main() -> None:
     MAX_N = 6
     MAX_P = 7
     run_experiment_with_fuzzed_parameters_a_b_p_q(
-        check_phi_is_hermitian_symmmetric, max_n=MAX_N, max_p=MAX_P, min_a=1, min_b=1
+        check_phi_is_hermitian_symmetric, max_n=MAX_N, max_p=MAX_P, min_a=1, min_b=1
     )
 
 
