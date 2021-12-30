@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 import math
 import copy
 import pprint
@@ -275,26 +276,74 @@ def is_hermitian_symmetric_matrix(A: sy.MatrixExpr) -> bool:
 @beartype
 def get_matrix_of_coefficients(f: sy.Expr) -> sy.MatrixExpr:
     """Get the matrix of coefficients for a polynomial in terms of the given variables."""
+    # Get free symbols in the polynomial.
     symbs = f.free_symbols
+
+    # Compute lists of components for each vector variable.
+    dimension = 0
     component_lists: List[List[Expr]] = []
+    vector_component_map: Dict[Expr, List[Expr]] = {}
     for symb in symbs:
         components = []
         m = symb.as_explicit()
+
+        # Make sure dimensions of all vector arguments are identical.
+        dimension = len(m) if dimension == 0 else dimension
+        assert dimension == len(m)
+
         for entry in m:
             components.append(entry)
+        vector_component_map[symb] = components
         component_lists.append(components)
+
+    n = dimension
+
+    # Get all pairs of components.
     component_pairs: List[Tuple[Expr]] = list(itertools.product(*component_lists))
+
+    # Take the product of the elements in each pair.
     products: List[Expr] = [pair[0] * pair[1] for pair in component_pairs]
     logger.info(f"Products:")
     sprint(products)
-    f = sy.expand(sy.collect(sy.expand(f), products))
 
-    # TODO: Get coeff of all multiindex terms up to degree p.
+    # Get all powers of these things.
+    max_degree = max(sy.degree_list(f))
+
+    multiindices = list(itertools.product(range(0, max_degree + 1), repeat=n))
+    logger.info(f"Multiindices: {multiindices}")
+
+    symbol_monomials_map: Dict[Expr, Set[Expr]] = {}
+    for symb, components in vector_component_map.items():
+        monomials = set()
+        for multiindex in multiindices:
+            assert len(multiindex) == len(components)
+            monomial = sy.Integer(1)
+            for index, component in zip(multiindex, components):
+                monomial *= component ** index
+            monomials.add(monomial)
+        symbol_monomials_map[symb] = monomials
+
+    multivariate_tuples: List[Tuple[Expr]] = list(itertools.product(*symbol_monomials_map.values()))
+
+    multivariate_monomials: Set[Expr] = set()
+    for multivariate_tuple in multivariate_tuples:
+        multivariate_monomial = sy.Integer(1)
+        for univariate_monomial in multivariate_tuple:
+            multivariate_monomial *= univariate_monomial
+            multivariate_monomials.add(multivariate_monomial)
+
+    f = f.as_poly()
+    coeffs = f.all_coeffs()
+    sprint(coeffs)
+    sys.exit()
+    f = sy.expand(sy.collect(sy.expand(f), multivariate_monomials))
+
     logger.info(f"Collected f:")
     sprint(f)
-    for prod in products:
-        coeff = f.coeff(prod)
-        logger.info(f"coeff of {prod}: {coeff}")
+    for mon in multivariate_monomials:
+        coeff = f.coeff(mon)
+        logger.info(f"coeff of {mon}: {coeff}")
+        sys.exit()
 
 
 @beartype
