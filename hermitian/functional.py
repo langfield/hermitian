@@ -4,7 +4,7 @@ import math
 import copy
 import pprint
 import itertools
-from functools import wraps
+import functools
 
 from loguru import logger
 from beartype import beartype
@@ -178,30 +178,30 @@ def get_phi_gamma_product_polarized(
 
 @beartype
 def get_theta_x_from_phi_gamma(
-    phi_gamma: sy.Expr, z: sy.Matrix, z_symbol: sy.Expr, a: int, b: int
+    phi_gamma: sy.Expr, z: sy.Matrix, z_sym: sy.Expr, a: int, b: int
 ) -> sy.Expr:
     x = sy.symbols(f"x0:{a + b}")
     phi_gamma_x = copy.deepcopy(phi_gamma)
     for j, x_j in enumerate(x):
-        assert z_symbol in phi_gamma_x.free_symbols
+        assert z_sym in phi_gamma_x.free_symbols
         phi_gamma_x = phi_gamma_x.subs(sy.conjugate(z[j, 0]) * z[j, 0], x_j)
 
-    assert z_symbol not in phi_gamma_x.free_symbols
+    assert z_sym not in phi_gamma_x.free_symbols
     return phi_gamma_x
 
 
 @beartype
 def get_theta_x(a: int, b: int, p: int, q: Tuple[int, ...]) -> sy.Expr:
-    phi_gamma, z, z_symbol = get_phi_gamma_z(a, b, p, q)
-    return get_theta_x_from_phi_gamma(phi_gamma, z, z_symbol, a, b)
+    phi_gamma, z, z_sym = get_phi_gamma_z(a, b, p, q)
+    return get_theta_x_from_phi_gamma(phi_gamma, z, z_sym, a, b)
 
 
 @beartype
 def get_phi_gamma_z(
     a: int, b: int, p: int, q: Tuple[int, ...]
 ) -> Tuple[sy.Expr, sy.Matrix, sy.Expr]:
-    z_symbol = sy.MatrixSymbol("z", a + b, 1)
-    z = sy.Matrix(z_symbol)
+    z_sym = sy.MatrixSymbol("z", a + b, 1)
+    z = sy.Matrix(z_sym)
 
     primitive_roots = get_primitive_pth_roots_of_unity(p)
     assert len(primitive_roots) > 0
@@ -210,7 +210,7 @@ def get_phi_gamma_z(
     group = get_type_iii_gamma(a, b, p, q, omega)
     phi_gamma: sy.Expr = get_phi_gamma_product(z, group, a, b)
 
-    return phi_gamma, z, z_symbol
+    return phi_gamma, z, z_sym
 
 
 @beartype
@@ -218,10 +218,10 @@ def get_phi_gamma_z_w_polarized(
     a: int, b: int, p: int, q: Tuple[int, ...]
 ) -> Tuple[sy.Expr, sy.Matrix, sy.Matrix, sy.Expr, sy.Expr]:
     """Treat bar{z} as an independent variable bar{w}."""
-    z_symbol = sy.MatrixSymbol("z", a + b, 1)
-    w_symbol = sy.MatrixSymbol("w", a + b, 1)
-    z = sy.Matrix(z_symbol)
-    w = sy.Matrix(w_symbol)
+    z_sym = sy.MatrixSymbol("z", a + b, 1)
+    w_sym = sy.MatrixSymbol("w", a + b, 1)
+    z = sy.Matrix(z_sym)
+    w = sy.Matrix(w_sym)
 
     primitive_roots = get_primitive_pth_roots_of_unity(p)
     assert len(primitive_roots) > 0
@@ -230,7 +230,7 @@ def get_phi_gamma_z_w_polarized(
     group = get_type_iii_gamma(a, b, p, q, omega)
     phi_gamma: sy.Expr = get_phi_gamma_product_polarized(z, w, group, a, b)
 
-    return sy.simplify(phi_gamma), z, w, z_symbol, w_symbol
+    return sy.simplify(phi_gamma), z, w, z_sym, w_sym
 
 
 @beartype
@@ -238,14 +238,14 @@ def get_phi_gamma_z_w_polarized_no_bar(
     a: int, b: int, p: int, q: Tuple[int, ...]
 ) -> Tuple[sy.Expr, sy.Matrix, sy.Matrix, sy.Expr, sy.Expr]:
     """Treat bar{z} as an independent variable w."""
-    phi_gamma, z, w, z_symbol, w_symbol = get_phi_gamma_z_w_polarized(a, b, p, q)
+    phi_gamma, z, w, z_sym, w_sym = get_phi_gamma_z_w_polarized(a, b, p, q)
 
     return (
-        sy.simplify(phi_gamma.subs(w_symbol, sy.conjugate(w_symbol))),
+        sy.simplify(phi_gamma.subs(w_sym, sy.conjugate(w_sym))),
         z,
         w,
-        z_symbol,
-        w_symbol,
+        z_sym,
+        w_sym,
     )
 
 
@@ -279,7 +279,7 @@ def is_hermitian_symmetric_matrix(A: sy.MatrixExpr) -> bool:
 
 
 @beartype
-def get_vector_component_map(symbs: List[sy.MatrixSymbol]) -> Dict[sy.MatrixSymbol, List[sy.Symbol]]:
+def get_vector_component_map(symbs: List[sy.MatrixExpr]) -> Dict[sy.MatrixExpr, List[sy.Symbol]]:
     """Maps vector (sy.Matrix) symbols to lists of their components."""
     assert len(symbs) > 0
     dim = 0
@@ -299,7 +299,7 @@ def get_vector_component_map(symbs: List[sy.MatrixSymbol]) -> Dict[sy.MatrixSymb
 
 
 @beartype
-def get_multivariate_monomials(symbs: List[sy.MatrixSymbol], degree: int) -> Set[sy.Expr]:
+def get_multivariate_monomials(symbs: List[sy.MatrixExpr], degree: int) -> Set[sy.Expr]:
     assert len(symbs) > 0
 
     # Map sy.Matrix symbols to lists of components.
@@ -359,23 +359,31 @@ def get_matrix_of_coefficients(f: sy.Expr) -> sy.MatrixExpr:
     for mon in multivariate_monomials:
         coeff = f.coeff(mon)
         logger.info(f"coeff of {mon}: {coeff}")
-        sys.exit()
+    raise NotImplementedError
+
+@beartype
+def get_multiindices_multivariate(arity: int, dim: int, degree: int) -> Set[Tuple[Tuple[int, ...], ...]]:
+    """Returns ``arity`` sets of multiindices, one for each variable."""
+    multivariate_multiindices: List[Tuple[Tuple[int, ...], ...]] = []
+    for _ in range(arity):
+        univariate_multiindices = tuple(itertools.product(range(0, degree + 1), repeat=dim))
+        multivariate_multiindices.append(univariate_multiindices)
+    return set(multivariate_multiindices)
+
+
+def get_coefficient_matrixsymbol_for_polynomial(arity: int, dim: int, degree: int) -> sy.MatrixSymbol:
+    raise NotImplementedError
 
 
 @beartype
-def get_polynomial_in_z_z_bar(n: int, degree: int) -> sy.Expr:
-    z_symbol = sy.MatrixSymbol("z", n, 1)
-    z = sy.Matrix(z_symbol)
-    symbs = [z_symbol, sy.conjugate(z_symbol)]
+def get_polynomial_in_z_z_bar(z_sym: sy.MatrixExpr, degree: int) -> sy.Expr:
+    z_bar_sym = sy.conjugate(z_sym)
+    symbs = [z_sym, z_bar_sym]
 
     vector_component_map = get_vector_component_map(symbs)
-    n = len(list(vector_component_map.values())[0])
-
-    multiindices = list(itertools.product(range(0, degree + 1), repeat=n))
-    for multiindex in multiindices:
-        assert len(multiindex) == len(z)
-        for index, component in zip(multiindex, z):
-            pass
+    mons = get_multivariate_monomials(symbs, degree)
+    poly = functools.reduce(lambda x, y: x + y, mons)
+    return poly
 
 
 @beartype
