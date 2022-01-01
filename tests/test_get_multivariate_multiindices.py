@@ -1,3 +1,4 @@
+import itertools
 from loguru import logger
 from hermitian.aliases import List, Tuple, Dict, Any, Callable, Optional
 from hermitian.functional import (
@@ -101,3 +102,66 @@ def test_get_multiindices_multivariate_trivariate_one_dimensional_degree_zero() 
     logger.info(f"Multiindices: {mults}")
     assert len(mults) == arity
     assert mults == (((0,),), ((0,),), ((0,),))
+
+
+def test_get_multiindices_multivariate_univariate_two_dimensional_degree_one() -> None:
+    """
+    We have one 2-dimensional variable x = (x_1, x_2), and we want degree up to 1.
+    So we should only have x_1^0 x_2^0, x_1^0 x_2^1, x_1^1 x_2^0, x_1^1 x_2^1.
+    """
+    arity = 1
+    dim = 2
+    degree = 1
+    mults = get_multiindices_multivariate(arity, dim, degree)
+    logger.info(f"Multiindices: {mults}")
+    assert len(mults) == arity
+    assert mults == (((0,0),(0,1),(1,0),(1,1)),)
+
+
+def test_get_multiindices_multivariate_univariate_two_dimensional_degree_two() -> None:
+    """
+    We have one 2-dimensional variable x = (x_1, x_2), and we want degree up to 2.
+    So we should only have 
+        x_1^0 x_2^0,
+        x_1^0 x_2^1,
+        x_1^0 x_2^2,
+        x_1^1 x_2^0,
+        x_1^1 x_2^1,
+        x_1^1 x_2^2,
+        x_1^2 x_2^0,
+        x_1^2 x_2^1,
+        x_1^2 x_2^2,
+    """
+    arity = 1
+    dim = 2
+    degree = 2
+    mults = get_multiindices_multivariate(arity, dim, degree)
+    logger.info(f"Multiindices: {mults}")
+    assert len(mults) == arity
+    assert mults == (((0,0),(0,1),(0,2),(1,0),(1,1),(1,2),(2,0),(2,1),(2,2)),)
+
+
+def test_get_multiindices_multivariate_bivariate_two_dimensional_degree_one() -> None:
+    """
+    We have two 2-dimensional variables x = (x_1, x_2), y = (y_1, y_2), and we
+    want degree up to 1.  So we should only have 
+        x_1^0 x_2^0 y_1^0 y_2^0,
+        x_1^0 x_2^1 y_1^0 y_2^0,
+        x_1^1 x_2^0 y_1^0 y_2^0,
+        x_1^1 x_2^1 y_1^0 y_2^0,
+        x_1^0 x_2^0 y_1^1 y_2^0,
+        x_1^0 x_2^1 y_1^1 y_2^0,
+        x_1^1 x_2^0 y_1^1 y_2^0,
+        x_1^1 x_2^1 y_1^1 y_2^0,
+        x_1^0 x_2^0 y_1^1 y_2^1,
+        x_1^0 x_2^1 y_1^1 y_2^1,
+        x_1^1 x_2^0 y_1^1 y_2^1,
+        x_1^1 x_2^1 y_1^1 y_2^1,
+    """
+    arity = 2
+    dim = 2
+    degree = 1
+    mults = get_multiindices_multivariate(arity, dim, degree)
+    logger.info(f"Multiindices: {mults}")
+    assert len(mults) == arity
+    assert mults == (((0,0),(0,1),(1,0),(1,1)),((0,0),(0,1),(1,0),(1,1)))
