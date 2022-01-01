@@ -11,7 +11,7 @@ from beartype import beartype
 
 import sympy as sy
 
-from hermitian.aliases import List, Tuple, Dict, Any, Callable, Optional
+from hermitian.aliases import List, Tuple, Dict, Set, Any, Callable, Optional
 
 USE_UNICODE = True
 
@@ -259,7 +259,6 @@ def is_hermitian_symmetric_polynomial(
     assert sy.shape(z) == sy.shape(w)
     assert len(sy.shape(z)) == 2
     assert sy.shape(z)[1] == 1
-    n = sy.shape(z)[0]
 
     # Swap (z, w).
     f_w_z_bar = f.subs([(z, w), (w, z)])
@@ -280,13 +279,13 @@ def is_hermitian_symmetric_matrix(A: sy.MatrixExpr) -> bool:
 
 
 @beartype
-def get_vector_component_map(sybs: List[sy.Symbol]) -> Dict[Expr, List[Expr]]:
+def get_vector_component_map(symbs: List[sy.MatrixSymbol]) -> Dict[sy.MatrixSymbol, List[sy.Symbol]]:
     """Maps vector (sy.Matrix) symbols to lists of their components."""
     assert len(symbs) > 0
     dimension = 0
-    vector_component_map: Dict[Expr, List[Expr]] = {}
+    vector_component_map: Dict[sy.Expr, List[sy.Expr]] = {}
     for symb in symbs:
-        components: List[Expr] = []
+        components: List[sy.Expr] = []
         m = symb.as_explicit()
 
         # Make sure dimensions of all vector arguments are identical.
@@ -300,18 +299,17 @@ def get_vector_component_map(sybs: List[sy.Symbol]) -> Dict[Expr, List[Expr]]:
 
 
 @beartype
-def get_multivariate_monomials(symbs: List[sy.Symbol], degree: int) -> Set[Expr]:
+def get_multivariate_monomials(symbs: List[sy.Symbol], degree: int) -> Set[sy.Expr]:
     assert len(symbs) > 0
 
     # Map sy.Matrix symbols to lists of components.
     vector_component_map = get_vector_component_map(symbs)
-    n = len(list(vector_component_map.values())[0])
 
     # Compute all multiindices.
     multiindices = list(itertools.product(range(0, degree + 1), repeat=n))
 
     # Map sy.MatrixSymbols to sets of all possible univariate monomials.
-    symbol_monomials_map: Dict[Expr, Set[Expr]] = {}
+    symbol_monomials_map: Dict[sy.Expr, Set[sy.Expr]] = {}
     for symb, components in vector_component_map.items():
         monomials = set()
         for multiindex in multiindices:
@@ -323,11 +321,11 @@ def get_multivariate_monomials(symbs: List[sy.Symbol], degree: int) -> Set[Expr]
         symbol_monomials_map[symb] = monomials
 
     # Get all multivariate monomials.
-    multivariate_tuples: List[Tuple[Expr]] = list(
+    multivariate_tuples: List[Tuple[sy.Expr]] = list(
         itertools.product(*symbol_monomials_map.values())
     )
 
-    multivariate_monomials: Set[Expr] = set()
+    multivariate_monomials: Set[sy.Expr] = set()
     for multivariate_tuple in multivariate_tuples:
         multivariate_monomial = sy.Integer(1)
         for univariate_monomial in multivariate_tuple:
@@ -355,7 +353,7 @@ def get_matrix_of_coefficients(f: sy.Expr) -> sy.MatrixExpr:
     sys.exit()
     f = sy.expand(sy.collect(sy.expand(f), multivariate_monomials))
 
-    logger.info(f"Collected f:")
+    logger.info("Collected f:")
     sprint(f)
     for mon in multivariate_monomials:
         coeff = f.coeff(mon)
@@ -363,9 +361,11 @@ def get_matrix_of_coefficients(f: sy.Expr) -> sy.MatrixExpr:
         sys.exit()
 
 
-def get_polynomial_in_z_z_bar(n: int, degree: int) -> Expr:
+@beartype
+def get_polynomial_in_z_z_bar(n: int, degree: int) -> sy.Expr:
     z_symbol = sy.MatrixSymbol("z", n, 1)
     z = sy.Matrix(z_symbol)
+    symbs = [z_symbol, sy.conjugate(z_symbol)]
 
     vector_component_map = get_vector_component_map(symbs)
     n = len(list(vector_component_map.values())[0])
