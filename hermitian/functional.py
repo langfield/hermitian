@@ -362,13 +362,14 @@ def get_matrix_of_coefficients(f: sy.Expr) -> sy.MatrixExpr:
     raise NotImplementedError
 
 @beartype
-def get_multiindices_multivariate(arity: int, dim: int, degree: int) -> Set[Tuple[Tuple[int, ...], ...]]:
+def get_multiindices_multivariate(arity: int, dim: int, degree: int) -> Tuple[Tuple[Tuple[int, ...], ...], ...]:
     """Returns ``arity`` sets of multiindices, one for each variable."""
     multivariate_multiindices: List[Tuple[Tuple[int, ...], ...]] = []
     for _ in range(arity):
         univariate_multiindices = tuple(itertools.product(range(0, degree + 1), repeat=dim))
         multivariate_multiindices.append(univariate_multiindices)
-    return set(multivariate_multiindices)
+    logger.info(f"Length of mults: {len(multivariate_multiindices)}")
+    return tuple(multivariate_multiindices)
 
 
 def get_coefficient_matrixsymbol_for_polynomial(arity: int, dim: int, degree: int) -> sy.MatrixSymbol:

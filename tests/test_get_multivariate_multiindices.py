@@ -13,10 +13,10 @@ def test_get_multiindices_multivariate_univariate_one_dimensional_degree_zero() 
     arity = 1
     dim = 1
     degree = 0
-    mults: Tuple[Tuple[int]] = get_multiindices_multivariate(arity, dim, degree)
+    mults = get_multiindices_multivariate(arity, dim, degree)
     logger.info(f"Multiindices: {mults}")
     assert len(mults) == arity
-    assert mults == {((0,),)}
+    assert mults == (((0,),),)
 
 
 def test_get_multiindices_multivariate_univariate_one_dimensional_degree_one() -> None:
@@ -27,10 +27,10 @@ def test_get_multiindices_multivariate_univariate_one_dimensional_degree_one() -
     arity = 1
     dim = 1
     degree = 1
-    mults: Tuple[Tuple[int]] = get_multiindices_multivariate(arity, dim, degree)
+    mults = get_multiindices_multivariate(arity, dim, degree)
     logger.info(f"Multiindices: {mults}")
     assert len(mults) == arity
-    assert mults == {((0,), (1,))}
+    assert mults == (((0,), (1,)),)
 
 
 def test_get_multiindices_multivariate_univariate_one_dimensional_degree_two() -> None:
@@ -41,10 +41,10 @@ def test_get_multiindices_multivariate_univariate_one_dimensional_degree_two() -
     arity = 1
     dim = 1
     degree = 2
-    mults: Tuple[Tuple[int]] = get_multiindices_multivariate(arity, dim, degree)
+    mults = get_multiindices_multivariate(arity, dim, degree)
     logger.info(f"Multiindices: {mults}")
     assert len(mults) == arity
-    assert mults == {((0,), (1,), (2,))}
+    assert mults == (((0,), (1,), (2,)),)
 
 
 def test_get_multiindices_multivariate_univariate_two_dimensional_degree_zero() -> None:
@@ -55,10 +55,10 @@ def test_get_multiindices_multivariate_univariate_two_dimensional_degree_zero() 
     arity = 1
     dim = 2
     degree = 0
-    mults: Tuple[Tuple[int]] = get_multiindices_multivariate(arity, dim, degree)
+    mults = get_multiindices_multivariate(arity, dim, degree)
     logger.info(f"Multiindices: {mults}")
     assert len(mults) == arity
-    assert mults == {((0,0),)}
+    assert mults == (((0,0),),)
 
 
 def test_get_multiindices_multivariate_univariate_two_dimensional_degree_zero() -> None:
@@ -69,10 +69,10 @@ def test_get_multiindices_multivariate_univariate_two_dimensional_degree_zero() 
     arity = 1
     dim = 3
     degree = 0
-    mults: Tuple[Tuple[int]] = get_multiindices_multivariate(arity, dim, degree)
+    mults = get_multiindices_multivariate(arity, dim, degree)
     logger.info(f"Multiindices: {mults}")
     assert len(mults) == arity
-    assert mults == {((0,0,0),)}
+    assert mults == (((0,0,0),),)
 
 
 def test_get_multiindices_multivariate_bivariate_one_dimensional_degree_zero() -> None:
@@ -83,7 +83,21 @@ def test_get_multiindices_multivariate_bivariate_one_dimensional_degree_zero() -
     arity = 2
     dim = 1
     degree = 0
-    mults: Tuple[Tuple[int]] = get_multiindices_multivariate(arity, dim, degree)
+    mults = get_multiindices_multivariate(arity, dim, degree)
     logger.info(f"Multiindices: {mults}")
     assert len(mults) == arity
-    assert mults == {((0,),), ((0,),)}
+    assert mults == (((0,),), ((0,),))
+
+
+def test_get_multiindices_multivariate_trivariate_one_dimensional_degree_zero() -> None:
+    """
+    We have three scalar variables x, y, z, and we want degree up to 0.
+    So we should only have x^0, y^0, z^0.
+    """
+    arity = 3
+    dim = 1
+    degree = 0
+    mults = get_multiindices_multivariate(arity, dim, degree)
+    logger.info(f"Multiindices: {mults}")
+    assert len(mults) == arity
+    assert mults == (((0,),), ((0,),), ((0,),))
