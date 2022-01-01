@@ -55,3 +55,35 @@ def test_get_multiindices_multivariate_univariate_two_dimensional_degree_zero() 
     arity = 1
     dim = 2
     degree = 0
+    mults: Tuple[Tuple[int]] = get_multiindices_multivariate(arity, dim, degree)
+    logger.info(f"Multiindices: {mults}")
+    assert len(mults) == arity
+    assert mults == {((0,0),)}
+
+
+def test_get_multiindices_multivariate_univariate_two_dimensional_degree_zero() -> None:
+    """
+    We have a single 3-dimensional vector variable x = (x_1, x_2, x_3), and we want
+    degree up to 0.  So we should only have x_1^0, x_2^0, x_3^0.
+    """
+    arity = 1
+    dim = 3
+    degree = 0
+    mults: Tuple[Tuple[int]] = get_multiindices_multivariate(arity, dim, degree)
+    logger.info(f"Multiindices: {mults}")
+    assert len(mults) == arity
+    assert mults == {((0,0,0),)}
+
+
+def test_get_multiindices_multivariate_bivariate_one_dimensional_degree_zero() -> None:
+    """
+    We have two scalar variables x, y, and we want degree up to 0.
+    So we should only have x^0, y^0.
+    """
+    arity = 2
+    dim = 1
+    degree = 0
+    mults: Tuple[Tuple[int]] = get_multiindices_multivariate(arity, dim, degree)
+    logger.info(f"Multiindices: {mults}")
+    assert len(mults) == arity
+    assert mults == {((0,),), ((0,),)}
