@@ -282,15 +282,15 @@ def is_hermitian_symmetric_matrix(A: sy.MatrixExpr) -> bool:
 def get_vector_component_map(symbs: List[sy.MatrixSymbol]) -> Dict[sy.MatrixSymbol, List[sy.Symbol]]:
     """Maps vector (sy.Matrix) symbols to lists of their components."""
     assert len(symbs) > 0
-    dimension = 0
+    dim = 0
     vector_component_map: Dict[sy.Expr, List[sy.Expr]] = {}
     for symb in symbs:
         components: List[sy.Expr] = []
         m = symb.as_explicit()
 
-        # Make sure dimensions of all vector arguments are identical.
-        dimension = len(m) if dimension == 0 else dimension
-        assert dimension == len(m)
+        # Make sure dims of all vector arguments are identical.
+        dim = len(m) if dim == 0 else dim
+        assert dim == len(m)
 
         for entry in m:
             components.append(entry)
@@ -299,14 +299,15 @@ def get_vector_component_map(symbs: List[sy.MatrixSymbol]) -> Dict[sy.MatrixSymb
 
 
 @beartype
-def get_multivariate_monomials(symbs: List[sy.Symbol], degree: int) -> Set[sy.Expr]:
+def get_multivariate_monomials(symbs: List[sy.MatrixSymbol], degree: int) -> Set[sy.Expr]:
     assert len(symbs) > 0
 
     # Map sy.Matrix symbols to lists of components.
     vector_component_map = get_vector_component_map(symbs)
+    dim = len(list(vector_component_map.values())[0])
 
     # Compute all multiindices.
-    multiindices = list(itertools.product(range(0, degree + 1), repeat=n))
+    multiindices = list(itertools.product(range(0, degree + 1), repeat=dim))
 
     # Map sy.MatrixSymbols to sets of all possible univariate monomials.
     symbol_monomials_map: Dict[sy.Expr, Set[sy.Expr]] = {}
