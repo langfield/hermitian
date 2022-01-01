@@ -240,7 +240,13 @@ def get_phi_gamma_z_w_polarized_no_bar(
     """Treat bar{z} as an independent variable w."""
     phi_gamma, z, w, z_symbol, w_symbol = get_phi_gamma_z_w_polarized(a, b, p, q)
 
-    return sy.simplify(phi_gamma.subs(w_symbol, sy.conjugate(w_symbol))), z, w, z_symbol, w_symbol
+    return (
+        sy.simplify(phi_gamma.subs(w_symbol, sy.conjugate(w_symbol))),
+        z,
+        w,
+        z_symbol,
+        w_symbol,
+    )
 
 
 @beartype
@@ -274,17 +280,13 @@ def is_hermitian_symmetric_matrix(A: sy.MatrixExpr) -> bool:
 
 
 @beartype
-def get_matrix_of_coefficients(f: sy.Expr) -> sy.MatrixExpr:
-    """Get the matrix of coefficients for a polynomial in terms of the given variables."""
-    # Get free symbols in the polynomial.
-    symbs = f.free_symbols
-
-    # Compute lists of components for each vector variable.
+def get_vector_component_map(sybs: List[sy.Symbol]) -> Dict[Expr, List[Expr]]:
+    """Maps vector (sy.Matrix) symbols to lists of their components."""
+    assert len(symbs) > 0
     dimension = 0
-    component_lists: List[List[Expr]] = []
     vector_component_map: Dict[Expr, List[Expr]] = {}
     for symb in symbs:
-        components = []
+        components: List[Expr] = []
         m = symb.as_explicit()
 
         # Make sure dimensions of all vector arguments are identical.
@@ -294,24 +296,21 @@ def get_matrix_of_coefficients(f: sy.Expr) -> sy.MatrixExpr:
         for entry in m:
             components.append(entry)
         vector_component_map[symb] = components
-        component_lists.append(components)
+    return vector_component_map
 
-    n = dimension
 
-    # Get all pairs of components.
-    component_pairs: List[Tuple[Expr]] = list(itertools.product(*component_lists))
+@beartype
+def get_multivariate_monomials(symbs: List[sy.Symbol], degree: int) -> Set[Expr]:
+    assert len(symbs) > 0
 
-    # Take the product of the elements in each pair.
-    products: List[Expr] = [pair[0] * pair[1] for pair in component_pairs]
-    logger.info(f"Products:")
-    sprint(products)
+    # Map sy.Matrix symbols to lists of components.
+    vector_component_map = get_vector_component_map(symbs)
+    n = len(list(vector_component_map.values())[0])
 
-    # Get all powers of these things.
-    max_degree = max(sy.degree_list(f))
+    # Compute all multiindices.
+    multiindices = list(itertools.product(range(0, degree + 1), repeat=n))
 
-    multiindices = list(itertools.product(range(0, max_degree + 1), repeat=n))
-    logger.info(f"Multiindices: {multiindices}")
-
+    # Map sy.MatrixSymbols to sets of all possible univariate monomials.
     symbol_monomials_map: Dict[Expr, Set[Expr]] = {}
     for symb, components in vector_component_map.items():
         monomials = set()
@@ -323,7 +322,10 @@ def get_matrix_of_coefficients(f: sy.Expr) -> sy.MatrixExpr:
             monomials.add(monomial)
         symbol_monomials_map[symb] = monomials
 
-    multivariate_tuples: List[Tuple[Expr]] = list(itertools.product(*symbol_monomials_map.values()))
+    # Get all multivariate monomials.
+    multivariate_tuples: List[Tuple[Expr]] = list(
+        itertools.product(*symbol_monomials_map.values())
+    )
 
     multivariate_monomials: Set[Expr] = set()
     for multivariate_tuple in multivariate_tuples:
@@ -331,6 +333,21 @@ def get_matrix_of_coefficients(f: sy.Expr) -> sy.MatrixExpr:
         for univariate_monomial in multivariate_tuple:
             multivariate_monomial *= univariate_monomial
             multivariate_monomials.add(multivariate_monomial)
+
+    return multivariate_monomials
+
+
+@beartype
+def get_matrix_of_coefficients(f: sy.Expr) -> sy.MatrixExpr:
+    """Get the matrix of coefficients for a polynomial in terms of the given variables."""
+    # Get free symbols in the polynomial.
+    symbs = f.free_symbols
+
+    # Get all powers of these things.
+    max_degree = max(sy.degree_list(f))
+
+    # Get monomials.
+    multivariate_monomials = get_multivariate_monomials(symbs, max_degree)
 
     f = f.as_poly()
     coeffs = f.all_coeffs()
@@ -344,6 +361,20 @@ def get_matrix_of_coefficients(f: sy.Expr) -> sy.MatrixExpr:
         coeff = f.coeff(mon)
         logger.info(f"coeff of {mon}: {coeff}")
         sys.exit()
+
+
+def get_polynomial_in_z_z_bar(n: int, degree: int) -> Expr:
+    z_symbol = sy.MatrixSymbol("z", n, 1)
+    z = sy.Matrix(z_symbol)
+
+    vector_component_map = get_vector_component_map(symbs)
+    n = len(list(vector_component_map.values())[0])
+
+    multiindices = list(itertools.product(range(0, degree + 1), repeat=n))
+    for multiindex in multiindices:
+        assert len(multiindex) == len(z)
+        for index, component in zip(multiindex, z):
+            pass
 
 
 @beartype

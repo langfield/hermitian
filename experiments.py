@@ -63,11 +63,7 @@ def check_phi_is_hermitian_symmetric(
 
 
 def main() -> None:
-    MAX_N = 2
-    MAX_P = 3
-    run_experiment_with_fuzzed_parameters_a_b_p_q(
-        check_phi_is_hermitian_symmetric, max_n=MAX_N, max_p=MAX_P, min_a=1, min_b=1
-    )
+    pass
 
 
 if __name__ == "__main__":
