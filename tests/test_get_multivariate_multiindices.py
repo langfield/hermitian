@@ -165,3 +165,5 @@ def test_get_multiindices_multivariate_bivariate_two_dimensional_degree_one() ->
     logger.info(f"Multiindices: {mults}")
     assert len(mults) == arity
     assert mults == (((0,0),(0,1),(1,0),(1,1)),((0,0),(0,1),(1,0),(1,1)))
+    # This seems wrong, should have all possible coefficients, but don't.
+    raise NotImplementedError
