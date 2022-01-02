@@ -147,13 +147,18 @@ def test_get_multiindex_combinations_bivariate_one_dimensional_degree_one() -> N
 
 def test_get_multiindex_combinations_bivariate_one_dimensional_degree_two() -> None:
     """
-    We have two 1-dimensional variables up to degree 1.
+    We have two 1-dimensional variables up to degree 2.
 
     So the only monomials are:
         x^0 y^0
         x^0 y^1
+        x^0 y^2
         x^1 y^0
         x^1 y^1
+        x^1 y^2
+        x^2 y^0
+        x^2 y^1
+        x^2 y^2
 
     The tensor ``multiindex_combs`` has three dimensions:
         1. combinations of multiindices (unique monomials)
@@ -181,3 +186,29 @@ def test_get_multiindex_combinations_bivariate_one_dimensional_degree_two() -> N
         ((2,), (1,)),
         ((2,), (2,)),
     )
+
+def test_get_multiindex_combinations_trivariate_one_dimensional_degree_two() -> None:
+    """
+    We have three 1-dimensional variables up to degree 2.
+
+    So the only monomials are:
+        x^0 y^0
+        x^0 y^1
+        x^1 y^0
+        x^1 y^1
+
+    The tensor ``multiindex_combs`` has three dimensions:
+        1. Number of unique monomials
+        2. Arity (number of vector variables per monomial)
+        3. dim (number of multiindex components for each vector variable)
+    """
+    arity = 3
+    dim = 1
+    degree = 2
+    multiindex_combs = get_multiindex_combinations(arity, dim, degree)
+    tensor = np.array(multiindex_combs)
+    logger.info(f"Multiindex combination tensor (shape): {tensor.shape}")
+    assert len(tensor.shape) == 3
+    assert tensor.shape[0] == (degree + 1) ** arity
+    assert tensor.shape[1] == arity
+    assert tensor.shape[2] == dim
