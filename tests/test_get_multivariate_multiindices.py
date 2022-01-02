@@ -3,6 +3,7 @@ from loguru import logger
 from hermitian.aliases import List, Tuple, Dict, Any, Callable, Optional
 from hermitian.functional import (
     get_multiindices_multivariate,
+    get_multiindex_combinations,
 )
 
 

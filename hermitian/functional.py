@@ -373,8 +373,9 @@ def get_multiindices_multivariate(arity: int, dim: int, degree: int) -> Tuple[Tu
 
 
 @beartype
-def get_multiindex_combinations(multivariate_multiindices: Tuple[Tuple[Tuple[int, ...], ...], ...]) -> Tuple[Tuple[Tuple[int, ...], ...], ...]:
+def get_multiindex_combinations(arity: int, dim: int, degree: int) -> Tuple[Tuple[Tuple[int, ...], ...], ...]:
     """Returns multiindex combinations, one for each possible monomial."""
+    multivariate_multiindices = get_multiindices_multivariate(arity, dim, degree)
     return tuple(itertools.product(*multivariate_multiindices))
 
 
