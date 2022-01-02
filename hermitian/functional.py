@@ -372,6 +372,12 @@ def get_multiindices_multivariate(arity: int, dim: int, degree: int) -> Tuple[Tu
     return tuple(multivariate_multiindices)
 
 
+@beartype
+def get_multiindex_combinations(multivariate_multiindices: Tuple[Tuple[Tuple[int, ...], ...], ...]) -> Tuple[Tuple[Tuple[int, ...], ...], ...]:
+    """Returns multiindex combinations, one for each possible monomial."""
+    return tuple(itertools.product(*multivariate_multiindices))
+
+
 def get_coefficient_matrixsymbol_for_polynomial(arity: int, dim: int, degree: int) -> sy.MatrixSymbol:
     raise NotImplementedError
 
