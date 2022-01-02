@@ -1,3 +1,4 @@
+import math
 import itertools
 import numpy as np
 from loguru import logger
@@ -210,5 +211,33 @@ def test_get_multiindex_combinations_trivariate_one_dimensional_degree_two() -> 
     logger.info(f"Multiindex combination tensor (shape): {tensor.shape}")
     assert len(tensor.shape) == 3
     assert tensor.shape[0] == (degree + 1) ** arity
+    assert tensor.shape[1] == arity
+    assert tensor.shape[2] == dim
+
+
+def ncr(n: int, r: int) -> int:
+    f = math.factorial
+    return f(n) // f(r) // f(n - r)
+
+
+def test_get_multiindex_combinations() -> None:
+    """
+    The tensor ``multiindex_combs`` has three dimensions:
+        1. Number of unique monomials
+        2. Arity (number of vector variables per monomial)
+        3. dim (number of multiindex components for each vector variable)
+    """
+    arity = 3
+    dim = 3
+    degree = 3
+    multiindex_combs = get_multiindex_combinations(arity, dim, degree)
+    tensor = np.array(multiindex_combs)
+    combs = ncr(arity + degree, degree)
+    logger.info(f"Multiindex combination tensor (shape): {tensor.shape}")
+    logger.info(f"Combs: {combs}")
+    logger.info(f"Monomials: {tensor.shape[0]}")
+    guess = ((degree + 1) ** (arity)) ** dim
+    assert len(tensor.shape) == 3
+    assert tensor.shape[0] == guess
     assert tensor.shape[1] == arity
     assert tensor.shape[2] == dim
