@@ -188,6 +188,7 @@ def test_get_multiindex_combinations_bivariate_one_dimensional_degree_two() -> N
         ((2,), (2,)),
     )
 
+
 def test_get_multiindex_combinations_trivariate_one_dimensional_degree_two() -> None:
     """
     We have three 1-dimensional variables up to degree 2.

@@ -279,7 +279,9 @@ def is_hermitian_symmetric_matrix(A: sy.MatrixExpr) -> bool:
 
 
 @beartype
-def get_vector_component_map(symbs: List[sy.MatrixExpr]) -> Dict[sy.MatrixExpr, List[sy.Symbol]]:
+def get_vector_component_map(
+    symbs: List[sy.MatrixExpr],
+) -> Dict[sy.MatrixExpr, List[sy.Symbol]]:
     """Maps vector (sy.Matrix) symbols to lists of their components."""
     assert len(symbs) > 0
     dim = 0
@@ -361,19 +363,26 @@ def get_matrix_of_coefficients(f: sy.Expr) -> sy.MatrixExpr:
         logger.info(f"coeff of {mon}: {coeff}")
     raise NotImplementedError
 
+
 @beartype
-def get_multiindices_multivariate(arity: int, dim: int, degree: int) -> Tuple[Tuple[Tuple[int, ...], ...], ...]:
+def get_multiindices_multivariate(
+    arity: int, dim: int, degree: int
+) -> Tuple[Tuple[Tuple[int, ...], ...], ...]:
     """Returns ``arity`` tuples of multiindices, one for each variable."""
     multivariate_multiindices: List[Tuple[Tuple[int, ...], ...]] = []
     for _ in range(arity):
-        univariate_multiindices = tuple(itertools.product(range(0, degree + 1), repeat=dim))
+        univariate_multiindices = tuple(
+            itertools.product(range(0, degree + 1), repeat=dim)
+        )
         multivariate_multiindices.append(univariate_multiindices)
     logger.info(f"Length of mults: {len(multivariate_multiindices)}")
     return tuple(multivariate_multiindices)
 
 
 @beartype
-def get_multiindex_combinations(arity: int, dim: int, degree: int) -> Tuple[Tuple[Tuple[int, ...], ...], ...]:
+def get_multiindex_combinations(
+    arity: int, dim: int, degree: int
+) -> Tuple[Tuple[Tuple[int, ...], ...], ...]:
     """
     Returns multiindex combinations, one for each possible monomial.
 
@@ -383,10 +392,27 @@ def get_multiindex_combinations(arity: int, dim: int, degree: int) -> Tuple[Tupl
     multivariate_multiindices = get_multiindices_multivariate(arity, dim, degree)
     return tuple(itertools.product(*multivariate_multiindices))
 
+
 @beartype
 def get_vector_symbols(arity: int, dim: int) -> List[List[sy.Symbol]]:
     """Get up to 15 vector symbols."""
-    letters = ["x", "y", "z", "w", "u", "v", "r", "s", "t", "p", "q", "j", "k", "m", "n"]
+    letters = [
+        "x",
+        "y",
+        "z",
+        "w",
+        "u",
+        "v",
+        "r",
+        "s",
+        "t",
+        "p",
+        "q",
+        "j",
+        "k",
+        "m",
+        "n",
+    ]
     assert arity < len(letters)
     tokens = [f"{letter}_1:{dim + 1}" for letter in letters[:arity]]
     flat_symbols = np.array(sy.symbols(" ".join(tokens)))
@@ -411,7 +437,10 @@ def get_monomials(arity: int, dim: int, degree: int) -> Tuple[sy.Expr, ...]:
         monomials.append(monomial)
     return tuple(monomials)
 
-def get_coefficient_matrixsymbol_for_polynomial(arity: int, dim: int, degree: int) -> sy.MatrixSymbol:
+
+def get_coefficient_matrixsymbol_for_polynomial(
+    arity: int, dim: int, degree: int
+) -> sy.MatrixSymbol:
     raise NotImplementedError
 
 
