@@ -438,10 +438,24 @@ def get_monomials(arity: int, dim: int, degree: int) -> Tuple[sy.Expr, ...]:
     return tuple(monomials)
 
 
-def get_coefficient_matrixsymbol_for_polynomial(
-    arity: int, dim: int, degree: int
-) -> sy.MatrixSymbol:
-    raise NotImplementedError
+@beartype
+def get_coefficient_array_for_polynomial(arity: int, dim: int, degree: int) -> sy.Array:
+    multiindex_combinations = get_multiindex_combinations(arity, dim, degree)
+    coeffs = []
+    for monom_multiindices in multiindex_combinations:
+        symbol_constructor = r"c_{"
+        multiindex_constructors = []
+        for multiindex in monom_multiindices:
+            escaped_multiindex = str(multiindex).replace(", ", r"\,")
+            multiindex_constructors.append(rf"{escaped_multiindex}")
+        symbol_constructor += r"\,".join(multiindex_constructors) + "}"
+        symbol = sy.symbols(symbol_constructor)
+        coeffs.append(symbol)
+    coeffs = np.array(coeffs)
+    coeffs = coeffs.reshape(*[(degree + 1) ** dim for _ in range(arity)]).tolist()
+    coeffs = sy.Array(coeffs)
+
+    return coeffs
 
 
 @beartype
