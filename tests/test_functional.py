@@ -99,6 +99,6 @@ def test_get_polynomial_in_z_z_bar_one_dimensional_degree_two() -> None:
     z_sym = sy.MatrixSymbol("z", dim, 1)
     poly = get_polynomial_in_z_z_bar(z_sym, degree)
     z = z_sym.as_explicit()
-    actual_poly = sy.conjugate(z[0, 0]) * z[0, 0] + sy.conjugate(z[0, 0]) + z[0, 0] + 1
+    actual_poly = sy.conjugate(z[0, 0])**2*z[0, 0]**2 + sy.conjugate(z[0, 0])**2*z[0, 0] + sy.conjugate(z[0, 0])**2 + sy.conjugate(z[0, 0])*z[0, 0]**2 + sy.conjugate(z[0, 0])*z[0, 0] + sy.conjugate(z[0, 0]) + z[0, 0]**2 + z[0, 0] + 1
     sprint(poly)
     assert poly == actual_poly

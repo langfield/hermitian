@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+import pprint
 import sympy as sy
 from hermitian.functional import get_monomials, sprint
 
@@ -10,4 +10,4 @@ def test_get_monomials() -> None:
     monoms = get_monomials(arity, dim, degree)
     assert len(monoms) == ((degree + 1) ** arity) ** dim
     sprint(monoms)
-    assert False
+    pprint.pprint(monoms)

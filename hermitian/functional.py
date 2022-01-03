@@ -384,11 +384,20 @@ def get_multiindex_combinations(arity: int, dim: int, degree: int) -> Tuple[Tupl
     return tuple(itertools.product(*multivariate_multiindices))
 
 @beartype
+def get_vector_symbols(arity: int, dim: int) -> List[List[sy.Symbol]]:
+    """Get up to 15 vector symbols."""
+    letters = ["x", "y", "z", "w", "u", "v", "r", "s", "t", "p", "q", "j", "k", "m", "n"]
+    assert arity < len(letters)
+    tokens = [f"{letter}_1:{dim + 1}" for letter in letters[:arity]]
+    flat_symbols = np.array(sy.symbols(" ".join(tokens)))
+    return flat_symbols.reshape(arity, dim).tolist()
+
+
+@beartype
 def get_monomials(arity: int, dim: int, degree: int) -> Tuple[sy.Expr, ...]:
     """Generate a tuple of monomials for an arbitrary polynomial."""
     multiindex_combinations = get_multiindex_combinations(arity, dim, degree)
-    symbols = sy.symbols(rf"x_1:{arity + 1}+1:{dim + 1}")
-    symbols = np.array(symbols).reshape(arity, dim)
+    symbols = get_vector_symbols(arity, dim)
     monomials = []
     for monom_multiindices in multiindex_combinations:
         assert len(monom_multiindices) == len(symbols)
