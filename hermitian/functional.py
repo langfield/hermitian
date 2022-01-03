@@ -6,10 +6,10 @@ import pprint
 import itertools
 import functools
 
+import numpy as np
+import sympy as sy
 from loguru import logger
 from beartype import beartype
-
-import sympy as sy
 
 from hermitian.aliases import List, Tuple, Dict, Set, Any, Callable, Optional
 
@@ -363,7 +363,7 @@ def get_matrix_of_coefficients(f: sy.Expr) -> sy.MatrixExpr:
 
 @beartype
 def get_multiindices_multivariate(arity: int, dim: int, degree: int) -> Tuple[Tuple[Tuple[int, ...], ...], ...]:
-    """Returns ``arity`` sets of multiindices, one for each variable."""
+    """Returns ``arity`` tuples of multiindices, one for each variable."""
     multivariate_multiindices: List[Tuple[Tuple[int, ...], ...]] = []
     for _ in range(arity):
         univariate_multiindices = tuple(itertools.product(range(0, degree + 1), repeat=dim))
@@ -374,10 +374,33 @@ def get_multiindices_multivariate(arity: int, dim: int, degree: int) -> Tuple[Tu
 
 @beartype
 def get_multiindex_combinations(arity: int, dim: int, degree: int) -> Tuple[Tuple[Tuple[int, ...], ...], ...]:
-    """Returns multiindex combinations, one for each possible monomial."""
+    """
+    Returns multiindex combinations, one for each possible monomial.
+
+    The "tensor" returned has shape ``(monoms, arity, dim)``,
+    where ``monoms == ((degree + 1) ** (arity)) ** dim``.
+    """
     multivariate_multiindices = get_multiindices_multivariate(arity, dim, degree)
     return tuple(itertools.product(*multivariate_multiindices))
 
+@beartype
+def get_monomials(arity: int, dim: int, degree: int) -> Tuple[sy.Expr, ...]:
+    """Generate a tuple of monomials for an arbitrary polynomial."""
+    multiindex_combinations = get_multiindex_combinations(arity, dim, degree)
+    symbols = sy.symbols(rf"x_1:{arity + 1}+1:{dim + 1}")
+    symbols = np.array(symbols).reshape(arity, dim)
+    monomials = []
+    for monom_multiindices in multiindex_combinations:
+        assert len(monom_multiindices) == len(symbols)
+        monomial = sy.Integer(1)
+        for j, multiindex in enumerate(monom_multiindices):
+            vector = symbols[j]
+            univariate_monomial = sy.Integer(1)
+            for k, index in enumerate(multiindex):
+                univariate_monomial *= vector[k] ** index
+            monomial *= univariate_monomial
+        monomials.append(monomial)
+    return tuple(monomials)
 
 def get_coefficient_matrixsymbol_for_polynomial(arity: int, dim: int, degree: int) -> sy.MatrixSymbol:
     raise NotImplementedError
