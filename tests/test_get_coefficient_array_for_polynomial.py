@@ -10,4 +10,3 @@ def test_get_coefficient_array_for_polynomial() -> None:
     coeffs = get_coefficient_array_for_polynomial(arity, dim, degree)
     print(sy.latex(coeffs))
     print(f"Length: {len(coeffs)}")
-    assert False

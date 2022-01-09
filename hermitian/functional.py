@@ -439,7 +439,9 @@ def get_monomials(arity: int, dim: int, degree: int) -> Dict[tuple, sy.Expr]:
 
 
 @beartype
-def get_coefficient_array_for_polynomial(arity: int, dim: int, degree: int) -> dict:
+def get_coefficient_array_for_polynomial(
+    arity: int, dim: int, degree: int
+) -> Dict[Tuple[Tuple[int, ...], ...], sy.Symbol]:
     multiindex_combinations = get_multiindex_combinations(arity, dim, degree)
     coeffs = {}
     for monom_multiindices in multiindex_combinations:
@@ -455,8 +457,18 @@ def get_coefficient_array_for_polynomial(arity: int, dim: int, degree: int) -> d
     return coeffs
 
 
-def get_polynomial(arity, dim, degree) -> sy.Expr:
-    pass
+@beartype
+def get_polynomial(arity: int, dim: int, degree: int) -> sy.Expr:
+    coeffs = get_coefficient_array_for_polynomial(arity, dim, degree)
+    monoms = get_monomials(arity, dim, degree)
+    assert len(coeffs) == len(monoms)
+    poly = sy.Integer(1)
+    for monom_multiindices, monomial in monoms.items():
+        assert monom_multiindices in coeffs
+        coeff = coeffs[monom_multiindices]
+        term = monomial * coeff
+        poly += term
+    return poly
 
 
 @beartype
