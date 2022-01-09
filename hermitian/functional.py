@@ -420,11 +420,11 @@ def get_vector_symbols(arity: int, dim: int) -> List[List[sy.Symbol]]:
 
 
 @beartype
-def get_monomials(arity: int, dim: int, degree: int) -> Tuple[sy.Expr, ...]:
+def get_monomials(arity: int, dim: int, degree: int) -> Dict[tuple, sy.Expr]:
     """Generate a tuple of monomials for an arbitrary polynomial."""
     multiindex_combinations = get_multiindex_combinations(arity, dim, degree)
     symbols = get_vector_symbols(arity, dim)
-    monomials = []
+    monomials = {}
     for monom_multiindices in multiindex_combinations:
         assert len(monom_multiindices) == len(symbols)
         monomial = sy.Integer(1)
@@ -434,14 +434,14 @@ def get_monomials(arity: int, dim: int, degree: int) -> Tuple[sy.Expr, ...]:
             for k, index in enumerate(multiindex):
                 univariate_monomial *= vector[k] ** index
             monomial *= univariate_monomial
-        monomials.append(monomial)
-    return tuple(monomials)
+        monomials[monom_multiindices] = monomial
+    return monomials
 
 
 @beartype
-def get_coefficient_array_for_polynomial(arity: int, dim: int, degree: int) -> sy.Array:
+def get_coefficient_array_for_polynomial(arity: int, dim: int, degree: int) -> dict:
     multiindex_combinations = get_multiindex_combinations(arity, dim, degree)
-    coeffs = []
+    coeffs = {}
     for monom_multiindices in multiindex_combinations:
         symbol_constructor = r"c_{"
         multiindex_constructors = []
@@ -450,12 +450,13 @@ def get_coefficient_array_for_polynomial(arity: int, dim: int, degree: int) -> s
             multiindex_constructors.append(rf"{escaped_multiindex}")
         symbol_constructor += r"\,".join(multiindex_constructors) + "}"
         symbol = sy.symbols(symbol_constructor)
-        coeffs.append(symbol)
-    coeffs = np.array(coeffs)
-    coeffs = coeffs.reshape(*[(degree + 1) ** dim for _ in range(arity)]).tolist()
-    coeffs = sy.Array(coeffs)
+        coeffs[monom_multiindices] = symbol
 
     return coeffs
+
+
+def get_polynomial(arity, dim, degree) -> sy.Expr:
+    pass
 
 
 @beartype
