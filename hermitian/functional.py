@@ -394,7 +394,7 @@ def get_multiindex_combinations(
 
 
 @beartype
-def get_vector_symbols(arity: int, dim: int) -> List[List[sy.Symbol]]:
+def get_complex_vector_symbols(arity: int, dim: int) -> List[List[sy.Expr]]:
     """Get up to 15 vector symbols."""
     letters = [
         "x",
@@ -414,8 +414,11 @@ def get_vector_symbols(arity: int, dim: int) -> List[List[sy.Symbol]]:
         "n",
     ]
     assert arity < len(letters)
-    tokens = [f"{letter}_1:{dim + 1}" for letter in letters[:arity]]
-    flat_symbols = np.array(sy.symbols(" ".join(tokens)))
+    re_tokens = [f"Re({letter}_1:{dim + 1})" for letter in letters[:arity]]
+    im_tokens = [f"Im({letter}_1:{dim + 1})" for letter in letters[:arity]]
+    flat_re_symbols = sy.symbols(" ".join(re_tokens), real=True)
+    flat_im_symbols = sy.symbols(" ".join(im_tokens), real=True)
+    flat_symbols = np.array([re + sy.I * im for re, im in zip(flat_re_symbols, flat_im_symbols)])
     return flat_symbols.reshape(arity, dim).tolist()
 
 
@@ -423,7 +426,7 @@ def get_vector_symbols(arity: int, dim: int) -> List[List[sy.Symbol]]:
 def get_monomials(arity: int, dim: int, degree: int) -> Dict[tuple, sy.Expr]:
     """Generate a tuple of monomials for an arbitrary polynomial."""
     multiindex_combinations = get_multiindex_combinations(arity, dim, degree)
-    symbols = get_vector_symbols(arity, dim)
+    symbols = get_complex_vector_symbols(arity, dim)
     monomials = {}
     for monom_multiindices in multiindex_combinations:
         assert len(monom_multiindices) == len(symbols)
@@ -451,7 +454,11 @@ def get_coefficient_array_for_polynomial(
             escaped_multiindex = str(multiindex).replace(", ", r"\,")
             multiindex_constructors.append(rf"{escaped_multiindex}")
         symbol_constructor += r"\,".join(multiindex_constructors) + "}"
-        symbol = sy.symbols(symbol_constructor)
+        re_symbol_constructor = f"Re({symbol_constructor})"
+        im_symbol_constructor = f"Im({symbol_constructor})"
+        re_symbol = sy.symbols(re_symbol_constructor, real=True)
+        im_symbol = sy.symbols(im_symbol_constructor, real=True)
+        symbol = re_symbol + sy.I * im_symbol
         coeffs[monom_multiindices] = symbol
 
     return coeffs
