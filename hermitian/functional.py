@@ -19,17 +19,21 @@ from beartype import beartype
 from hermitian.aliases import List, Tuple, Dict, Set, Any, Callable, Optional, Iterable, Union
 
 USE_UNICODE = True
-REAL_MACRO_NAME = "mathnormal"
-COMPLEX_MACRO_NAME = "mathsf"
+REAL_MACRO_NAME = "\\mathnormal"
+COMPLEX_MACRO_NAME = "\\mathsf"
+RE_MACRO = "\\operatorname{Re}"
+IM_MACRO = "\\operatorname{Im}"
 LETTER_MAP = {
-        "z": (f"\\{COMPLEX_MACRO_NAME}{{z}}", (f"\\{REAL_MACRO_NAME}{{x}}", f"\\{REAL_MACRO_NAME}{{y}}")),
-        "w": (f"\\{COMPLEX_MACRO_NAME}{{w}}", (f"\\{REAL_MACRO_NAME}{{r}}", f"\\{REAL_MACRO_NAME}{{s}}")),
-        "u": (f"\\{COMPLEX_MACRO_NAME}{{u}}", (f"\\{REAL_MACRO_NAME}{{u}}", f"\\{REAL_MACRO_NAME}{{v}}")),
-        "p": (f"\\{COMPLEX_MACRO_NAME}{{p}}", (f"\\{REAL_MACRO_NAME}{{p}}", f"\\{REAL_MACRO_NAME}{{q}}")),
-        "m": (f"\\{COMPLEX_MACRO_NAME}{{m}}", (f"\\{REAL_MACRO_NAME}{{m}}", f"\\{REAL_MACRO_NAME}{{n}}")),
-        "c": (f"\\{COMPLEX_MACRO_NAME}{{c}}", (f"\\{REAL_MACRO_NAME}{{a}}", f"\\{REAL_MACRO_NAME}{{b}}")),
-        "j": (f"\\{COMPLEX_MACRO_NAME}{{j}}", (f"\\{REAL_MACRO_NAME}{{j}}", f"\\{REAL_MACRO_NAME}{{k}}")),
-        "f": (f"\\{COMPLEX_MACRO_NAME}{{f}}", (f"\\{REAL_MACRO_NAME}{{g}}", f"\\{REAL_MACRO_NAME}{{h}}")),
+        "z": (f"{COMPLEX_MACRO_NAME}{{z}}", (f"{REAL_MACRO_NAME}{{x}}", f"{REAL_MACRO_NAME}{{y}}")),
+        "w": (f"{COMPLEX_MACRO_NAME}{{w}}", (f"{REAL_MACRO_NAME}{{r}}", f"{REAL_MACRO_NAME}{{s}}")),
+        "u": (f"{COMPLEX_MACRO_NAME}{{u}}", (f"{REAL_MACRO_NAME}{{u}}", f"{REAL_MACRO_NAME}{{v}}")),
+        "p": (f"{COMPLEX_MACRO_NAME}{{p}}", (f"{REAL_MACRO_NAME}{{p}}", f"{REAL_MACRO_NAME}{{q}}")),
+        "m": (f"{COMPLEX_MACRO_NAME}{{m}}", (f"{REAL_MACRO_NAME}{{m}}", f"{REAL_MACRO_NAME}{{n}}")),
+        "c": (f"{COMPLEX_MACRO_NAME}{{c}}", (f"{REAL_MACRO_NAME}{{a}}", f"{REAL_MACRO_NAME}{{b}}")),
+        "j": (f"{COMPLEX_MACRO_NAME}{{j}}", (f"{REAL_MACRO_NAME}{{j}}", f"{REAL_MACRO_NAME}{{k}}")),
+        "f": (f"{COMPLEX_MACRO_NAME}{{f}}", (f"{REAL_MACRO_NAME}{{g}}", f"{REAL_MACRO_NAME}{{h}}")),
+        "x": (f"{COMPLEX_MACRO_NAME}{{x}}", (f"{RE_MACRO}{COMPLEX_MACRO_NAME}{{x}}", f"{IM_MACRO}{COMPLEX_MACRO_NAME}{{x}}")),
+        "y": (f"{COMPLEX_MACRO_NAME}{{y}}", (f"{RE_MACRO}{COMPLEX_MACRO_NAME}{{y}}", f"{IM_MACRO}{COMPLEX_MACRO_NAME}{{y}}")),
 }
 LETTERS = {key: val for _, (key, val) in LETTER_MAP.items()}
 COMPONENT_COMPLEX_NUMBER_MAP = {val: key for key, val in LETTERS.items()}
@@ -424,20 +428,20 @@ def get_complex_vector_symbols(arity: int, dim: int) -> Tuple[List[List[sy.Expr]
     symbol_map = {}
     flat_symbols = []
     for letter in list(LETTER_MAP.keys())[:arity]:
-        letter_complex_symbols, letter_symbol_map = get_complex_vector_symbol_from_letter(letter, dim)
+        _, letter_complex_symbols, letter_symbol_map = get_complex_vector_symbol_from_letter(letter, dim)
         symbol_map.update(letter_symbol_map)
         flat_symbols.extend(letter_complex_symbols)
     complex_symbols_arr = np.array(flat_symbols)
     return complex_symbols_arr.reshape(arity, dim).tolist(), symbol_map
 
 @beartype
-def get_complex_vector_symbol_from_letter(letter: str, dim: int) -> Tuple[List[sy.Expr], Dict[sy.Symbol, List[List[sy.Symbol]]]]:
+def get_complex_vector_symbol_from_letter(letter: str, dim: int) -> Tuple[sy.Symbol, List[sy.Expr], Dict[sy.Symbol, List[List[sy.Symbol]]]]:
     assert letter in LETTER_MAP
     symbol_map = {}
     flat_re_symbols = []
     flat_im_symbols = []
     flat_complex_symbols = []
-    complex_glyph, (re_glyph, im_glyph) = LETTER_MAP[letter]:
+    complex_glyph, (re_glyph, im_glyph) = LETTER_MAP[letter]
 
     re_letter_symbols = list(sy.symbols(f"{re_glyph}_{{1:{dim + 1}}}", real=True))
     im_letter_symbols = list(sy.symbols(f"{im_glyph}_{{1:{dim + 1}}}", real=True))
@@ -449,7 +453,7 @@ def get_complex_vector_symbol_from_letter(letter: str, dim: int) -> Tuple[List[s
     symbol_map[vec] = [complex_letter_symbols, re_letter_symbols, im_letter_symbols]
     flat_symbols = [re + sy.I * im for re, im in zip(re_letter_symbols, im_letter_symbols)]
 
-    return flat_symbols, symbol_map
+    return vec, flat_symbols, symbol_map
 
 
 
@@ -551,9 +555,10 @@ def is_hermitian_form(f: sy.Expr, symbol_map: Dict[sy.Symbol, List[List[sy.Symbo
     swap.extend([(s, y) for y, s in zip(ys, ss)])
     simplified_eqn = sy.simplify(f - sy.conjugate(f.subs(swap)))
     katex(simplified_eqn)
-    return is_sesquilinear_form(f) and simplified_eqn == sy.Integer(0)
+    return is_sesquilinear_form(f, symbol_map) and simplified_eqn == sy.Integer(0)
 
 
+@beartype
 def substitute_complex_symbols(f: sy.Expr, symbol_map: Dict[sy.Symbol, List[List[sy.Symbol]]]) -> sy.Expr:
     substitution = []
     for letter, (complex_symbols, re_symbols, im_symbols) in symbol_map.items():
@@ -562,10 +567,11 @@ def substitute_complex_symbols(f: sy.Expr, symbol_map: Dict[sy.Symbol, List[List
     return f.subs(substitution)
 
 
+@beartype
 def substitute_vector_symbols(f: sy.Expr, substitutions: List[Tuple[sy.Expr, sy.Expr]], symbol_map: Dict[sy.Symbol, List[List[sy.Symbol]]]) -> sy.Expr:
     complex_f = substitute_complex_symbols(f, symbol_map)
     sy_substitutions = []
-    for src, tgt in substitutions.items():
+    for src, tgt in substitutions:
 
         # Remove all real-valued free symbols.
         complex_src = substitute_complex_symbols(src, symbol_map)
@@ -606,22 +612,28 @@ def substitute_vector_symbols(f: sy.Expr, substitutions: List[Tuple[sy.Expr, sy.
 
     subbed_f = complex_f.subs(sy_substitutions)
     katex(subbed_f)
+    return subbed_f
 
 
 @beartype
-def is_sesquilinear_form(f: sy.Expr) -> bool:
-    _, xs, ys = list(symbol_map.values())[0]
-    _, rs, ss = list(symbol_map.values())[1]
-    _, u_symbol_map = get_complex_vector_symbol_from_letter("u")
-    _, p_symbol_map = get_complex_vector_symbol_from_letter("p")
-    _, us, vs = list(u_symbol_map.values())[0]
-    _, ps, qs = list(p_symbol_map.values())[1]
-    swap = [(x, x + u) for x, u in zip(xs, us)]
-    swap.extend([(y, y + v) for y, v in zip(ys, vs)])
-    swap.extend([(r, r + p) for r, p in zip(rs, ps)])
-    swap.extend([(s, s + q) for s, q in zip(ss, qs)])
-    lhs = f.subs(swap)
-    return True
+def is_sesquilinear_form(f: sy.Expr, symbol_map: Dict[sy.Symbol, List[List[sy.Symbol]]]) -> bool:
+    assert len(symbol_map) == 2
+    dim = len(list(symbol_map.values())[0][0])
+    zz, ww = tuple(list(symbol_map.keys()))
+    x, _, _ = get_complex_vector_symbol_from_letter("x", dim)
+    y, _, _ = get_complex_vector_symbol_from_letter("y", dim)
+    z, _, _ = get_complex_vector_symbol_from_letter("z", dim)
+    w, _, _ = get_complex_vector_symbol_from_letter("w", dim)
+    assert isinstance(zz, sy.Expr)
+    assert isinstance(x, sy.Expr)
+    fxyzw = substitute_vector_symbols(f, [(zz, x + y), (ww, z + w)], symbol_map)
+    fxz = substitute_vector_symbols(f, [(zz, x), (ww, z)], symbol_map)
+    fxw = substitute_vector_symbols(f, [(zz, x), (ww, w)], symbol_map)
+    fyz = substitute_vector_symbols(f, [(zz, y), (ww, z)], symbol_map)
+    fyw = substitute_vector_symbols(f, [(zz, y), (ww, w)], symbol_map)
+    rhs = fxz + fxw + fyz + fyw
+    result = sy.simplify(sy.solve(fxyzw - rhs))
+    return result == sy.Integer(0)
 
 
 @beartype
