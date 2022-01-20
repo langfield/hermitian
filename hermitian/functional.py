@@ -18,6 +18,19 @@ from beartype import beartype
 from hermitian.aliases import List, Tuple, Dict, Set, Any, Callable, Optional
 
 USE_UNICODE = True
+REAL_MACRO_NAME = "mathfrak"
+COMPLEX_MACRO_NAME = "mathfrak"
+LETTERS = {
+        f"\\{COMPLEX_MACRO_NAME}{{z}}": ("x", "y"),
+        f"\\{COMPLEX_MACRO_NAME}{{w}}": ("r", "s"),
+        f"\\{COMPLEX_MACRO_NAME}{{u}}": ("u", "v"),
+        f"\\{COMPLEX_MACRO_NAME}{{p}}": ("p", "q"),
+        f"\\{COMPLEX_MACRO_NAME}{{m}}": ("m", "n"),
+        f"\\{COMPLEX_MACRO_NAME}{{m}}": ("m", "n"),
+        f"\\{COMPLEX_MACRO_NAME}{{c}}": ("a", "b"),
+        f"\\{COMPLEX_MACRO_NAME}{{j}}": ("j", "k"),
+}
+COMPONENT_COMPLEX_NUMBER_MAP = {val: key for key, val in LETTERS.items()}
 
 
 def sprint(obj: sy.Expr) -> None:
@@ -396,41 +409,31 @@ def get_multiindex_combinations(
     multivariate_multiindices = get_multiindices_multivariate(arity, dim, degree)
     return tuple(itertools.product(*multivariate_multiindices))
 
-
 @beartype
-def get_complex_vector_symbols(arity: int, dim: int) -> List[List[sy.Expr]]:
-    """Get up to 15 vector symbols."""
-    letters = [
-        "x",
-        "y",
-        "z",
-        "w",
-        "u",
-        "v",
-        "r",
-        "s",
-        "t",
-        "p",
-        "q",
-        "j",
-        "k",
-        "m",
-        "n",
-    ]
-    assert arity < len(letters)
-    re_tokens = [f"\\operatorname{{Re}}{letter}_{{1:{dim + 1}}}" for letter in letters[:arity]]
-    im_tokens = [f"\\operatorname{{Im}}{letter}_{{1:{dim + 1}}}" for letter in letters[:arity]]
+def get_complex_vector_symbols(arity: int, dim: int) -> Tuple[List[List[sy.Expr]], Dict[sy.Symbol, sy.Expr]]:
+    """Get up to 8 vector symbols."""
+    # Meta-options: lowercase, uppercase (scalar, vector).
+    # Options: math, bf, tt, sf, cal (uppercase-only), frak
+    # math : real
+    # frak : complex
+    # Consider making real variables sf or tt, since then we can use math for other stuff.
+    assert arity < len(LETTERS)
+    re_tokens = [f"{re}_{{1:{dim + 1}}}" for _, (re, _) in list(LETTERS.items())[:arity]]
+    im_tokens = [f"{im}_{{1:{dim + 1}}}" for _, (_, im) in list(LETTERS.items())[:arity]]
+    complex_tokens = [f"{complex}_{{1:{dim + 1}}}" for complex in list(LETTERS.keys())[:arity]]
     flat_re_symbols = sy.symbols(" ".join(re_tokens), real=True)
     flat_im_symbols = sy.symbols(" ".join(im_tokens), real=True)
+    flat_complex_symbols = sy.symbols(" ".join(complex_tokens))
     flat_symbols = np.array([re + sy.I * im for re, im in zip(flat_re_symbols, flat_im_symbols)])
-    return flat_symbols.reshape(arity, dim).tolist()
+    complex_map = {expansion: z for z, expansion in zip(flat_complex_symbols, flat_symbols)}
+    return flat_symbols.reshape(arity, dim).tolist(), complex_map
 
 
 @beartype
-def get_monomials(arity: int, dim: int, degree: int) -> Dict[tuple, sy.Expr]:
+def get_monomials(arity: int, dim: int, degree: int) -> Tuple[Dict[tuple, sy.Expr], Dict[sy.Symbol, sy.Expr]]:
     """Generate a tuple of monomials for an arbitrary polynomial."""
     multiindex_combinations = get_multiindex_combinations(arity, dim, degree)
-    symbols = get_complex_vector_symbols(arity, dim)
+    symbols, complex_map = get_complex_vector_symbols(arity, dim)
     monomials = {}
     for monom_multiindices in multiindex_combinations:
         assert len(monom_multiindices) == len(symbols)
@@ -442,24 +445,25 @@ def get_monomials(arity: int, dim: int, degree: int) -> Dict[tuple, sy.Expr]:
                 univariate_monomial *= vector[k] ** index
             monomial *= univariate_monomial
         monomials[monom_multiindices] = monomial
-    return monomials
+    return monomials, complex_map
 
 
 @beartype
 def get_coefficient_array_for_polynomial(
     arity: int, dim: int, degree: int
 ) -> Dict[Tuple[Tuple[int, ...], ...], sy.Symbol]:
+    """ Complex-valued by default. """
     multiindex_combinations = get_multiindex_combinations(arity, dim, degree)
     coeffs = {}
     for monom_multiindices in multiindex_combinations:
-        symbol_constructor = r"c_{"
+        symbol_subscript_constructor = r"{"
         multiindex_constructors = []
         for multiindex in monom_multiindices:
             escaped_multiindex = str(multiindex).replace(", ", r"\,")
             multiindex_constructors.append(rf"{escaped_multiindex}")
-        symbol_constructor += r"\,".join(multiindex_constructors) + "}"
-        re_symbol_constructor = f"\\operatorname{{Re}}{symbol_constructor}"
-        im_symbol_constructor = f"\\operatorname{{Im}}{symbol_constructor}"
+        symbol_subscript_constructor += r"\,".join(multiindex_constructors) + "}"
+        re_symbol_constructor = f"a_{symbol_subscript_constructor}"
+        im_symbol_constructor = f"b_{symbol_subscript_constructor}"
         re_symbol = sy.symbols(re_symbol_constructor, real=True)
         im_symbol = sy.symbols(im_symbol_constructor, real=True)
         symbol = re_symbol + sy.I * im_symbol
@@ -469,9 +473,9 @@ def get_coefficient_array_for_polynomial(
 
 
 @beartype
-def get_polynomial(arity: int, dim: int, degree: int) -> sy.Expr:
+def get_polynomial_in_terms_of_re_im_components(arity: int, dim: int, degree: int) -> Tuple[sy.Expr, Dict[sy.Symbol, sy.Expr]]:
     coeffs = get_coefficient_array_for_polynomial(arity, dim, degree)
-    monoms = get_monomials(arity, dim, degree)
+    monoms, complex_map = get_monomials(arity, dim, degree)
     assert len(coeffs) == len(monoms)
     poly = sy.Integer(1)
     for monom_multiindices, monomial in monoms.items():
@@ -479,7 +483,15 @@ def get_polynomial(arity: int, dim: int, degree: int) -> sy.Expr:
         coeff = coeffs[monom_multiindices]
         term = monomial * coeff
         poly += term
-    return poly
+    return poly, complex_map
+
+@beartype
+def get_complex_polynomial(arity: int, dim: int, degree: int) -> sy.Expr:
+    poly, complex_map = get_polynomial_in_terms_of_re_im_components(arity, dim, degree)
+    complex_symbol_substitution_list = [(key, val) for key, val in complex_map.items()]
+    logger.info(complex_symbol_substitution_list)
+    complex_poly = poly.subs(complex_symbol_substitution_list)
+    return complex_poly
 
 
 @beartype
@@ -517,8 +529,10 @@ def katex(s: sy.Expr) -> None:
     docname = "expression"
     tmpdir = tempfile.mkdtemp()
     tempfile_path = os.path.join(tmpdir, f"{docname}.txt")
+    latex_pkgs = ["breqn", "amsmath", "amsthm", "amssymb"]
     with open(tempfile_path, "w") as tmp:
-        header = "\\documentclass{article}[12pt]\n\\usepackage[margin=0.25in]{geometry}\n\\usepackage{breqn}\n\\begin{document}\n\\begin{dmath}\n"
+        pkgs = "\n" + "\n".join([f"\\usepackage{{{pkg}}}" for pkg in latex_pkgs]) + "\n"
+        header = "\\documentclass{article}[12pt]\n\\usepackage[margin=0.25in]{geometry}" + pkgs + "\\begin{document}\n\\begin{dmath}\n"
         footer = "\n\\end{dmath}\n\\end{document}\n"
         tmp.write(header + sy.latex(s) + footer)
     repo = pathlib.Path(__file__).parent.parent.resolve()
@@ -541,4 +555,4 @@ def katex(s: sy.Expr) -> None:
     logger.info(f"katex stdout: {p.stdout}")
     logger.info(f"katex stderr {p.stderr}")
     pdf_path = os.path.join(outdir, f"{docname}.pdf")
-    p = subprocess.run(["xdg-open", f"{pdf_path}"], capture_output=True)
+    # p = subprocess.run(["xdg-open", f"{pdf_path}"], capture_output=True)
