@@ -18,18 +18,19 @@ from beartype import beartype
 from hermitian.aliases import List, Tuple, Dict, Set, Any, Callable, Optional
 
 USE_UNICODE = True
-REAL_MACRO_NAME = "mathfrak"
-COMPLEX_MACRO_NAME = "mathfrak"
-LETTERS = {
-        f"\\{COMPLEX_MACRO_NAME}{{z}}": ("x", "y"),
-        f"\\{COMPLEX_MACRO_NAME}{{w}}": ("r", "s"),
-        f"\\{COMPLEX_MACRO_NAME}{{u}}": ("u", "v"),
-        f"\\{COMPLEX_MACRO_NAME}{{p}}": ("p", "q"),
-        f"\\{COMPLEX_MACRO_NAME}{{m}}": ("m", "n"),
-        f"\\{COMPLEX_MACRO_NAME}{{m}}": ("m", "n"),
-        f"\\{COMPLEX_MACRO_NAME}{{c}}": ("a", "b"),
-        f"\\{COMPLEX_MACRO_NAME}{{j}}": ("j", "k"),
+REAL_MACRO_NAME = "mathnormal"
+COMPLEX_MACRO_NAME = "mathsf"
+LETTER_MAP = {
+        "z": (f"\\{COMPLEX_MACRO_NAME}{{z}}", (f"\\{REAL_MACRO_NAME}{{x}}", f"\\{REAL_MACRO_NAME}{{x}}")),
+        "w": (f"\\{COMPLEX_MACRO_NAME}{{w}}", (f"\\{REAL_MACRO_NAME}{{r}}", f"\\{REAL_MACRO_NAME}{{r}}")),
+        "u": (f"\\{COMPLEX_MACRO_NAME}{{u}}", (f"\\{REAL_MACRO_NAME}{{u}}", f"\\{REAL_MACRO_NAME}{{u}}")),
+        "p": (f"\\{COMPLEX_MACRO_NAME}{{p}}", (f"\\{REAL_MACRO_NAME}{{p}}", f"\\{REAL_MACRO_NAME}{{p}}")),
+        "m": (f"\\{COMPLEX_MACRO_NAME}{{m}}", (f"\\{REAL_MACRO_NAME}{{m}}", f"\\{REAL_MACRO_NAME}{{m}}")),
+        "m": (f"\\{COMPLEX_MACRO_NAME}{{m}}", (f"\\{REAL_MACRO_NAME}{{m}}", f"\\{REAL_MACRO_NAME}{{m}}")),
+        "c": (f"\\{COMPLEX_MACRO_NAME}{{c}}", (f"\\{REAL_MACRO_NAME}{{a}}", f"\\{REAL_MACRO_NAME}{{a}}")),
+        "j": (f"\\{COMPLEX_MACRO_NAME}{{j}}", (f"\\{REAL_MACRO_NAME}{{j}}", f"\\{REAL_MACRO_NAME}{{j}}")),
 }
+LETTERS = {key: val for _, (key, val) in LETTER_MAP.items()}
 COMPONENT_COMPLEX_NUMBER_MAP = {val: key for key, val in LETTERS.items()}
 
 
@@ -451,10 +452,11 @@ def get_monomials(arity: int, dim: int, degree: int) -> Tuple[Dict[tuple, sy.Exp
 @beartype
 def get_coefficient_array_for_polynomial(
     arity: int, dim: int, degree: int
-) -> Dict[Tuple[Tuple[int, ...], ...], sy.Symbol]:
+) -> Tuple[Dict[Tuple[Tuple[int, ...], ...], sy.Symbol], Dict[sy.Symbol, sy.Expr]]:
     """ Complex-valued by default. """
     multiindex_combinations = get_multiindex_combinations(arity, dim, degree)
     coeffs = {}
+    complex_coeffs = {}
     for monom_multiindices in multiindex_combinations:
         symbol_subscript_constructor = r"{"
         multiindex_constructors = []
@@ -462,20 +464,27 @@ def get_coefficient_array_for_polynomial(
             escaped_multiindex = str(multiindex).replace(", ", r"\,")
             multiindex_constructors.append(rf"{escaped_multiindex}")
         symbol_subscript_constructor += r"\,".join(multiindex_constructors) + "}"
-        re_symbol_constructor = f"a_{symbol_subscript_constructor}"
-        im_symbol_constructor = f"b_{symbol_subscript_constructor}"
+        complex_macro, (re_macro, im_macro) = LETTER_MAP["c"]
+        re_symbol_constructor = f"{re_macro}_{symbol_subscript_constructor}"
+        im_symbol_constructor = f"{im_macro}_{symbol_subscript_constructor}"
+        complex_symbol_constructor = f"{complex_macro}_{symbol_subscript_constructor}"
         re_symbol = sy.symbols(re_symbol_constructor, real=True)
         im_symbol = sy.symbols(im_symbol_constructor, real=True)
+        complex_symbol = sy.symbols(complex_symbol_constructor, real=True)
         symbol = re_symbol + sy.I * im_symbol
         coeffs[monom_multiindices] = symbol
+        complex_coeffs[monom_multiindices] = complex_symbol
 
-    return coeffs
+    complex_map = {expansion: z for expansion, z in zip(coeffs.values(), complex_coeffs.values())}
+
+    return coeffs, complex_map
 
 
 @beartype
 def get_polynomial_in_terms_of_re_im_components(arity: int, dim: int, degree: int) -> Tuple[sy.Expr, Dict[sy.Symbol, sy.Expr]]:
-    coeffs = get_coefficient_array_for_polynomial(arity, dim, degree)
+    coeffs, complex_coeff_map  = get_coefficient_array_for_polynomial(arity, dim, degree)
     monoms, complex_map = get_monomials(arity, dim, degree)
+    complex_map = {**complex_map, **complex_coeff_map}
     assert len(coeffs) == len(monoms)
     poly = sy.Integer(1)
     for monom_multiindices, monomial in monoms.items():
