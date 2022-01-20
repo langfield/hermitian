@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+# !/usr/bin/env python3
+import re
 import os
 import sys
 import math
@@ -21,17 +22,18 @@ USE_UNICODE = True
 REAL_MACRO_NAME = "mathnormal"
 COMPLEX_MACRO_NAME = "mathsf"
 LETTER_MAP = {
-        "z": (f"\\{COMPLEX_MACRO_NAME}{{z}}", (f"\\{REAL_MACRO_NAME}{{x}}", f"\\{REAL_MACRO_NAME}{{x}}")),
-        "w": (f"\\{COMPLEX_MACRO_NAME}{{w}}", (f"\\{REAL_MACRO_NAME}{{r}}", f"\\{REAL_MACRO_NAME}{{r}}")),
-        "u": (f"\\{COMPLEX_MACRO_NAME}{{u}}", (f"\\{REAL_MACRO_NAME}{{u}}", f"\\{REAL_MACRO_NAME}{{u}}")),
-        "p": (f"\\{COMPLEX_MACRO_NAME}{{p}}", (f"\\{REAL_MACRO_NAME}{{p}}", f"\\{REAL_MACRO_NAME}{{p}}")),
-        "m": (f"\\{COMPLEX_MACRO_NAME}{{m}}", (f"\\{REAL_MACRO_NAME}{{m}}", f"\\{REAL_MACRO_NAME}{{m}}")),
-        "m": (f"\\{COMPLEX_MACRO_NAME}{{m}}", (f"\\{REAL_MACRO_NAME}{{m}}", f"\\{REAL_MACRO_NAME}{{m}}")),
-        "c": (f"\\{COMPLEX_MACRO_NAME}{{c}}", (f"\\{REAL_MACRO_NAME}{{a}}", f"\\{REAL_MACRO_NAME}{{a}}")),
-        "j": (f"\\{COMPLEX_MACRO_NAME}{{j}}", (f"\\{REAL_MACRO_NAME}{{j}}", f"\\{REAL_MACRO_NAME}{{j}}")),
+        "z": (f"\\{COMPLEX_MACRO_NAME}{{z}}", (f"\\{REAL_MACRO_NAME}{{x}}", f"\\{REAL_MACRO_NAME}{{y}}")),
+        "w": (f"\\{COMPLEX_MACRO_NAME}{{w}}", (f"\\{REAL_MACRO_NAME}{{r}}", f"\\{REAL_MACRO_NAME}{{s}}")),
+        "u": (f"\\{COMPLEX_MACRO_NAME}{{u}}", (f"\\{REAL_MACRO_NAME}{{u}}", f"\\{REAL_MACRO_NAME}{{v}}")),
+        "p": (f"\\{COMPLEX_MACRO_NAME}{{p}}", (f"\\{REAL_MACRO_NAME}{{p}}", f"\\{REAL_MACRO_NAME}{{q}}")),
+        "m": (f"\\{COMPLEX_MACRO_NAME}{{m}}", (f"\\{REAL_MACRO_NAME}{{m}}", f"\\{REAL_MACRO_NAME}{{n}}")),
+        "c": (f"\\{COMPLEX_MACRO_NAME}{{c}}", (f"\\{REAL_MACRO_NAME}{{a}}", f"\\{REAL_MACRO_NAME}{{b}}")),
+        "j": (f"\\{COMPLEX_MACRO_NAME}{{j}}", (f"\\{REAL_MACRO_NAME}{{j}}", f"\\{REAL_MACRO_NAME}{{k}}")),
+        "f": (f"\\{COMPLEX_MACRO_NAME}{{f}}", (f"\\{REAL_MACRO_NAME}{{g}}", f"\\{REAL_MACRO_NAME}{{h}}")),
 }
 LETTERS = {key: val for _, (key, val) in LETTER_MAP.items()}
 COMPONENT_COMPLEX_NUMBER_MAP = {val: key for key, val in LETTERS.items()}
+KATEX_EQUATIONS = []
 
 
 def sprint(obj: sy.Expr) -> None:
@@ -411,7 +413,7 @@ def get_multiindex_combinations(
     return tuple(itertools.product(*multivariate_multiindices))
 
 @beartype
-def get_complex_vector_symbols(arity: int, dim: int) -> Tuple[List[List[sy.Expr]], Dict[sy.Symbol, sy.Expr]]:
+def get_complex_vector_symbols(arity: int, dim: int) -> Tuple[List[List[sy.Expr]], Dict[sy.Symbol, List[List[sy.Symbol]]]]:
     """Get up to 8 vector symbols."""
     # Meta-options: lowercase, uppercase (scalar, vector).
     # Options: math, bf, tt, sf, cal (uppercase-only), frak
@@ -419,22 +421,43 @@ def get_complex_vector_symbols(arity: int, dim: int) -> Tuple[List[List[sy.Expr]
     # frak : complex
     # Consider making real variables sf or tt, since then we can use math for other stuff.
     assert arity < len(LETTERS)
-    re_tokens = [f"{re}_{{1:{dim + 1}}}" for _, (re, _) in list(LETTERS.items())[:arity]]
-    im_tokens = [f"{im}_{{1:{dim + 1}}}" for _, (_, im) in list(LETTERS.items())[:arity]]
-    complex_tokens = [f"{complex}_{{1:{dim + 1}}}" for complex in list(LETTERS.keys())[:arity]]
-    flat_re_symbols = sy.symbols(" ".join(re_tokens), real=True)
-    flat_im_symbols = sy.symbols(" ".join(im_tokens), real=True)
-    flat_complex_symbols = sy.symbols(" ".join(complex_tokens))
-    flat_symbols = np.array([re + sy.I * im for re, im in zip(flat_re_symbols, flat_im_symbols)])
-    complex_map = {expansion: z for z, expansion in zip(flat_complex_symbols, flat_symbols)}
-    return flat_symbols.reshape(arity, dim).tolist(), complex_map
+    symbol_map = {}
+    flat_symbols = []
+    for letter in list(LETTER_MAP.keys())[:arity]:
+        letter_complex_symbols, letter_symbol_map = get_complex_vector_symbol_from_letter(letter, dim)
+        symbol_map.update(letter_symbol_map)
+        flat_symbols.extend(letter_complex_symbols)
+    complex_symbols_arr = np.array(flat_symbols)
+    return complex_symbols_arr.reshape(arity, dim).tolist(), symbol_map
+
+@beartype
+def get_complex_vector_symbol_from_letter(letter: str, dim: int) -> Tuple[List[sy.Expr], Dict[sy.Symbol, List[List[sy.Symbol]]]]:
+    assert letter in LETTER_MAP
+    symbol_map = {}
+    flat_re_symbols = []
+    flat_im_symbols = []
+    flat_complex_symbols = []
+    complex_glyph, (re_glyph, im_glyph) = LETTER_MAP[letter]:
+
+    re_letter_symbols = list(sy.symbols(f"{re_glyph}_{{1:{dim + 1}}}", real=True))
+    im_letter_symbols = list(sy.symbols(f"{im_glyph}_{{1:{dim + 1}}}", real=True))
+    complex_letter_symbols = list(sy.symbols(f"{complex_glyph}_{{1:{dim + 1}}}"))
+
+    upper = letter.upper()
+    vec = sy.symbols(upper)
+
+    symbol_map[vec] = [complex_letter_symbols, re_letter_symbols, im_letter_symbols]
+    flat_symbols = [re + sy.I * im for re, im in zip(re_letter_symbols, im_letter_symbols)]
+
+    return flat_symbols, symbol_map
+
 
 
 @beartype
-def get_monomials(arity: int, dim: int, degree: int) -> Tuple[Dict[tuple, sy.Expr], Dict[sy.Symbol, sy.Expr]]:
+def get_monomials(arity: int, dim: int, degree: int) -> Tuple[Dict[tuple, sy.Expr], Dict[sy.Symbol, List[List[sy.Symbol]]]]:
     """Generate a tuple of monomials for an arbitrary polynomial."""
     multiindex_combinations = get_multiindex_combinations(arity, dim, degree)
-    symbols, complex_map = get_complex_vector_symbols(arity, dim)
+    symbols, symbol_map = get_complex_vector_symbols(arity, dim)
     monomials = {}
     for monom_multiindices in multiindex_combinations:
         assert len(monom_multiindices) == len(symbols)
@@ -446,7 +469,7 @@ def get_monomials(arity: int, dim: int, degree: int) -> Tuple[Dict[tuple, sy.Exp
                 univariate_monomial *= vector[k] ** index
             monomial *= univariate_monomial
         monomials[monom_multiindices] = monomial
-    return monomials, complex_map
+    return monomials, symbol_map
 
 
 @beartype
@@ -462,6 +485,8 @@ def get_coefficient_array_for_polynomial(
         multiindex_constructors = []
         for multiindex in monom_multiindices:
             escaped_multiindex = str(multiindex).replace(", ", r"\,")
+            # escaped_multiindex = escaped_multiindex.replace(",)", r"\,)")
+            escaped_multiindex = re.sub(r"\(([0-9]+),\)", r"\1", escaped_multiindex)
             multiindex_constructors.append(rf"{escaped_multiindex}")
         symbol_subscript_constructor += r"\,".join(multiindex_constructors) + "}"
         complex_macro, (re_macro, im_macro) = LETTER_MAP["c"]
@@ -481,9 +506,9 @@ def get_coefficient_array_for_polynomial(
 
 
 @beartype
-def get_polynomial_in_terms_of_re_im_components(arity: int, dim: int, degree: int) -> Tuple[sy.Expr, Dict[sy.Symbol, sy.Expr]]:
+def get_polynomial_in_terms_of_re_im_components(arity: int, dim: int, degree: int) -> Tuple[sy.Expr, Dict[sy.Symbol, List[List[sy.Symbol]]]]:
     coeffs, _ = get_coefficient_array_for_polynomial(arity, dim, degree)
-    monoms, re_symbs, im_symbs = get_monomials(arity, dim, degree)
+    monoms, symbol_map = get_monomials(arity, dim, degree)
     assert len(coeffs) == len(monoms)
     poly = sy.Integer(1)
     for monom_multiindices, monomial in monoms.items():
@@ -491,20 +516,17 @@ def get_polynomial_in_terms_of_re_im_components(arity: int, dim: int, degree: in
         coeff = coeffs[monom_multiindices]
         term = monomial * coeff
         poly += term
-    return poly, re_symbs, im_symbs
+    return poly, symbol_map
 
 @beartype
-def polarize(poly: sy.Expr, re_symbs: List[sy.Symbol], im_symbs: List[sy.Symbol]) -> sy.Expr:
-    polarization = [(im, -im) for im in im_symbs]
+def polarize(poly: sy.Expr, symbol_map: Dict[sy.Symbol, List[List[sy.Symbol]]]) -> sy.Expr:
+    assert len(symbol_map) == 2
+    zs, xs, ys = list(symbol_map.values())[0]
+    ws, rs, ss = list(symbol_map.values())[1]
+    assert len(ys) == len(ss)
+    polarization = [(s, -y) for y, s in zip(ys, ss)]
+    polarization.extend([(r, x) for x, r in zip(xs, rs)])
     return poly.subs(polarization)
-
-@beartype
-def get_complex_polynomial(arity: int, dim: int, degree: int) -> sy.Expr:
-    poly, complex_map = get_polynomial_in_terms_of_re_im_components(arity, dim, degree)
-    complex_symbol_substitution_list = [(key, val) for key, val in complex_map.items()]
-    logger.info(complex_symbol_substitution_list)
-    complex_poly = poly.subs(complex_symbol_substitution_list)
-    return complex_poly
 
 
 @beartype
@@ -516,6 +538,90 @@ def get_polynomial_in_z_z_bar(z_sym: sy.MatrixExpr, degree: int) -> sy.Expr:
     mons = get_multivariate_monomials(symbs, degree)
     poly = functools.reduce(lambda x, y: x + y, mons)
     return poly
+
+
+@beartype
+def is_hermitian_form(f: sy.Expr, symbol_map: Dict[sy.Symbol, List[List[sy.Symbol]]]) -> bool:
+    assert len(symbol_map) == 2
+    zs, xs, ys = list(symbol_map.values())[0]
+    ws, rs, ss = list(symbol_map.values())[1]
+    swap = [(x, r) for x, r in zip(xs, rs)]
+    swap.extend([(y, s) for y, s in zip(ys, ss)])
+    swap.extend([(r, x) for x, r in zip(xs, rs)])
+    swap.extend([(s, y) for y, s in zip(ys, ss)])
+    simplified_eqn = sy.simplify(f - sy.conjugate(f.subs(swap)))
+    katex(simplified_eqn)
+    return is_sesquilinear_form(f) and simplified_eqn == sy.Integer(0)
+
+
+def substitute_complex_symbols(f: sy.Expr, symbol_map: Dict[sy.Symbol, List[List[sy.Symbol]]]) -> sy.Expr:
+    substitution = []
+    for letter, (complex_symbols, re_symbols, im_symbols) in symbol_map.items():
+        for z, x, y in zip(complex_symbols, re_symbols, im_symbols):
+            substitution.append((x + sy.I * y, z))
+    return f.subs(substitution)
+
+
+def substitute_vector_symbols(f: sy.Expr, substitutions: List[Tuple[sy.Expr, sy.Expr]], symbol_map: Dict[sy.Symbol, List[List[sy.Symbol]]]) -> sy.Expr:
+    complex_f = substitute_complex_symbols(f, symbol_map)
+    sy_substitutions = []
+    for src, tgt in substitutions.items():
+
+        # Remove all real-valued free symbols.
+        complex_src = substitute_complex_symbols(src, symbol_map)
+        complex_tgt = substitute_complex_symbols(tgt, symbol_map)
+
+        # We want to construct a version of ``complex_src`` but only for the jth component.
+        # e.g. complez_src == z + w (z, w are vectors).
+        # free_symbols == [z, w].
+        # So ``src_symbol`` is e.g. ``z``.
+        dim = len(list(symbol_map.values())[0][0])
+
+        # For each dimension:
+        for j in range(dim):
+            jth_src_component_substitutions = []
+
+            # For each complex vector symbol:
+            for src_symbol in complex_src.free_symbols:
+
+                # Get its list of components.
+                # So ``zs`` is e.g. [z_1, z_2, z_3].
+                # Want to compute a list like [z_1 + w_1, z_2 + w_2, z_3 + w_3].
+                zs, _, _ = symbol_map[src_symbol]
+
+                # Substitute symbol for its jth component.
+                jth_src_component_substitutions.append((src_symbol, zs[j]))
+
+            # Actually do the substitution.
+            jth_component_complex_src = complex_src.subs(jth_src_component_substitutions)
+
+            jth_tgt_component_substitutions = []
+            for tgt_symbol in complex_tgt.free_symbols:
+                zs, _, _ = symbol_map[tgt_symbol]
+                jth_tgt_component_substitutions.append((tgt_symbol, zs[j]))
+            jth_component_complex_tgt = complex_tgt.subs(jth_tgt_component_substitutions)
+
+            # Add to list of sympy substitutions.
+            sy_substitutions.append((jth_component_complex_src, jth_component_complex_tgt))
+
+    subbed_f = complex_f.subs(sy_substitutions)
+    katex(subbed_f)
+
+
+@beartype
+def is_sesquilinear_form(f: sy.Expr) -> bool:
+    _, xs, ys = list(symbol_map.values())[0]
+    _, rs, ss = list(symbol_map.values())[1]
+    _, u_symbol_map = get_complex_vector_symbol_from_letter("u")
+    _, p_symbol_map = get_complex_vector_symbol_from_letter("p")
+    _, us, vs = list(u_symbol_map.values())[0]
+    _, ps, qs = list(p_symbol_map.values())[1]
+    swap = [(x, x + u) for x, u in zip(xs, us)]
+    swap.extend([(y, y + v) for y, v in zip(ys, vs)])
+    swap.extend([(r, r + p) for r, p in zip(rs, ps)])
+    swap.extend([(s, s + q) for s, q in zip(ss, qs)])
+    lhs = f.subs(swap)
+    return True
 
 
 @beartype
@@ -548,11 +654,10 @@ def katex(s: Union[sy.Expr, Iterable[sy.Expr]]) -> None:
     with open(tempfile_path, "w") as tmp:
         pkgs = "\n" + "\n".join([f"\\usepackage{{{pkg}}}" for pkg in latex_pkgs]) + "\n"
         header = "\\documentclass{article}[12pt]\n\\usepackage[margin=0.25in]{geometry}" + pkgs + "\\begin{document}\n"
-        equations = []
         for expr in s:
-            equations.append("\\begin{dmath}\n" + sy.latex(expr) + "\n\\end{dmath}\n")
+            KATEX_EQUATIONS.append("\\begin{dmath}\n" + sy.latex(expr) + "\n\\end{dmath}\n")
         footer = "\\end{document}\n"
-        body = "".join(equations)
+        body = "".join(KATEX_EQUATIONS)
         tmp.write(header + body + footer)
     repo = pathlib.Path(__file__).parent.parent.resolve()
     outdir = os.path.join(repo, "out")
