@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
+import os
 import sys
 import math
 import copy
 import pprint
+import pathlib
+import tempfile
 import itertools
 import functools
+import subprocess
 
 import numpy as np
 import sympy as sy
@@ -414,8 +418,8 @@ def get_complex_vector_symbols(arity: int, dim: int) -> List[List[sy.Expr]]:
         "n",
     ]
     assert arity < len(letters)
-    re_tokens = [f"Re({letter}_1:{dim + 1})" for letter in letters[:arity]]
-    im_tokens = [f"Im({letter}_1:{dim + 1})" for letter in letters[:arity]]
+    re_tokens = [f"\\operatorname{{Re}}{letter}_{{1:{dim + 1}}}" for letter in letters[:arity]]
+    im_tokens = [f"\\operatorname{{Im}}{letter}_{{1:{dim + 1}}}" for letter in letters[:arity]]
     flat_re_symbols = sy.symbols(" ".join(re_tokens), real=True)
     flat_im_symbols = sy.symbols(" ".join(im_tokens), real=True)
     flat_symbols = np.array([re + sy.I * im for re, im in zip(flat_re_symbols, flat_im_symbols)])
@@ -454,8 +458,8 @@ def get_coefficient_array_for_polynomial(
             escaped_multiindex = str(multiindex).replace(", ", r"\,")
             multiindex_constructors.append(rf"{escaped_multiindex}")
         symbol_constructor += r"\,".join(multiindex_constructors) + "}"
-        re_symbol_constructor = f"Re({symbol_constructor})"
-        im_symbol_constructor = f"Im({symbol_constructor})"
+        re_symbol_constructor = f"\\operatorname{{Re}}{symbol_constructor}"
+        im_symbol_constructor = f"\\operatorname{{Im}}{symbol_constructor}"
         re_symbol = sy.symbols(re_symbol_constructor, real=True)
         im_symbol = sy.symbols(im_symbol_constructor, real=True)
         symbol = re_symbol + sy.I * im_symbol
@@ -507,3 +511,34 @@ def run_experiment_with_fuzzed_parameters_a_b_p_q(
                 assert n <= p - 1
                 for q in itertools.combinations(range(1, p), n):
                     experiment(a, b, p, q)
+
+@beartype
+def katex(s: sy.Expr) -> None:
+    docname = "expression"
+    tmpdir = tempfile.mkdtemp()
+    tempfile_path = os.path.join(tmpdir, f"{docname}.txt")
+    with open(tempfile_path, "w") as tmp:
+        header = "\\documentclass{article}[12pt]\n\\usepackage[margin=0.25in]{geometry}\n\\usepackage{breqn}\n\\begin{document}\n\\begin{dmath}\n"
+        footer = "\n\\end{dmath}\n\\end{document}\n"
+        tmp.write(header + sy.latex(s) + footer)
+    repo = pathlib.Path(__file__).parent.parent.resolve()
+    outdir = os.path.join(repo, "out")
+    out = os.path.join(repo, "out.html")
+    logger.info(f"tmp.name: {tempfile_path}")
+    with open(tempfile_path) as fin:
+        s = fin.read()
+        print(s)
+    p = subprocess.run(["npx", "katex", "-d", "-i", f"{tempfile_path}", "-o", f"{out}"], capture_output=True)
+    args = ["cp", f"{tempfile_path}", f"{outdir}", "&&", "cd", f"{outdir}", "&&", "pdflatex", f"{docname}.txt"]
+    logger.info(f"Cmd: {' '.join(args)}")
+    p = subprocess.run(["cp", f"{tempfile_path}", f"{outdir}/"], capture_output=True)
+    logger.info(f"katex stdout: {p.stdout}")
+    logger.info(f"katex stderr {p.stderr}")
+    # p = subprocess.run(["cd", f"{outdir}"], capture_output=True)
+    logger.info(f"katex stdout: {p.stdout}")
+    logger.info(f"katex stderr {p.stderr}")
+    p = subprocess.run(["pdflatex", "--output-directory", f"{outdir}", f"{docname}.txt"], capture_output=True)
+    logger.info(f"katex stdout: {p.stdout}")
+    logger.info(f"katex stderr {p.stderr}")
+    pdf_path = os.path.join(outdir, f"{docname}.pdf")
+    p = subprocess.run(["xdg-open", f"{pdf_path}"], capture_output=True)

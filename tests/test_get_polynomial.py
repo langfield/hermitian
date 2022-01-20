@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import pprint
 import sympy as sy
-from hermitian.functional import get_polynomial, sprint
+from hermitian.functional import get_polynomial, sprint, katex
 
 
 def test_get_polynomial() -> None:
@@ -9,5 +9,5 @@ def test_get_polynomial() -> None:
     dim = 2
     degree = 1
     poly = get_polynomial(arity, dim, degree)
-    print(sy.latex(poly))
+    katex(poly)
     assert False

@@ -1,2 +1,6 @@
 __pycache__/
 *.jax
+node_modules/
+out/
+*.json
+*.log
