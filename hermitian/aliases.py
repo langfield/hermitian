@@ -49,9 +49,9 @@ if sys.version_info >= (3, 9):
     Pattern = re.Pattern  # typing.Pattern, typing.re.Pattern
     Match = re.Match  # typing.Match, typing.re.Match
 
-    from typing import Any, Optional, Annotated
+    from typing import Any, Optional, Annotated, Union
 else:
-    from typing import Set, Dict, List, Tuple, FrozenSet, Type, Any, Optional
+    from typing import Set, Dict, List, Tuple, FrozenSet, Type, Any, Optional, Union
     from typing import (
         AbstractSet,
         Deque,

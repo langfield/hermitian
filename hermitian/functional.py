@@ -15,7 +15,7 @@ import sympy as sy
 from loguru import logger
 from beartype import beartype
 
-from hermitian.aliases import List, Tuple, Dict, Set, Any, Callable, Optional
+from hermitian.aliases import List, Tuple, Dict, Set, Any, Callable, Optional, Iterable, Union
 
 USE_UNICODE = True
 REAL_MACRO_NAME = "mathnormal"
@@ -470,7 +470,7 @@ def get_coefficient_array_for_polynomial(
         complex_symbol_constructor = f"{complex_macro}_{symbol_subscript_constructor}"
         re_symbol = sy.symbols(re_symbol_constructor, real=True)
         im_symbol = sy.symbols(im_symbol_constructor, real=True)
-        complex_symbol = sy.symbols(complex_symbol_constructor, real=True)
+        complex_symbol = sy.symbols(complex_symbol_constructor)
         symbol = re_symbol + sy.I * im_symbol
         coeffs[monom_multiindices] = symbol
         complex_coeffs[monom_multiindices] = complex_symbol
@@ -482,9 +482,8 @@ def get_coefficient_array_for_polynomial(
 
 @beartype
 def get_polynomial_in_terms_of_re_im_components(arity: int, dim: int, degree: int) -> Tuple[sy.Expr, Dict[sy.Symbol, sy.Expr]]:
-    coeffs, complex_coeff_map  = get_coefficient_array_for_polynomial(arity, dim, degree)
-    monoms, complex_map = get_monomials(arity, dim, degree)
-    complex_map = {**complex_map, **complex_coeff_map}
+    coeffs, _ = get_coefficient_array_for_polynomial(arity, dim, degree)
+    monoms, re_symbs, im_symbs = get_monomials(arity, dim, degree)
     assert len(coeffs) == len(monoms)
     poly = sy.Integer(1)
     for monom_multiindices, monomial in monoms.items():
@@ -492,7 +491,12 @@ def get_polynomial_in_terms_of_re_im_components(arity: int, dim: int, degree: in
         coeff = coeffs[monom_multiindices]
         term = monomial * coeff
         poly += term
-    return poly, complex_map
+    return poly, re_symbs, im_symbs
+
+@beartype
+def polarize(poly: sy.Expr, re_symbs: List[sy.Symbol], im_symbs: List[sy.Symbol]) -> sy.Expr:
+    polarization = [(im, -im) for im in im_symbs]
+    return poly.subs(polarization)
 
 @beartype
 def get_complex_polynomial(arity: int, dim: int, degree: int) -> sy.Expr:
@@ -534,34 +538,24 @@ def run_experiment_with_fuzzed_parameters_a_b_p_q(
                     experiment(a, b, p, q)
 
 @beartype
-def katex(s: sy.Expr) -> None:
+def katex(s: Union[sy.Expr, Iterable[sy.Expr]]) -> None:
+    if not isinstance(s, Iterable):
+        s = [s]
     docname = "expression"
     tmpdir = tempfile.mkdtemp()
     tempfile_path = os.path.join(tmpdir, f"{docname}.txt")
     latex_pkgs = ["breqn", "amsmath", "amsthm", "amssymb"]
     with open(tempfile_path, "w") as tmp:
         pkgs = "\n" + "\n".join([f"\\usepackage{{{pkg}}}" for pkg in latex_pkgs]) + "\n"
-        header = "\\documentclass{article}[12pt]\n\\usepackage[margin=0.25in]{geometry}" + pkgs + "\\begin{document}\n\\begin{dmath}\n"
-        footer = "\n\\end{dmath}\n\\end{document}\n"
-        tmp.write(header + sy.latex(s) + footer)
+        header = "\\documentclass{article}[12pt]\n\\usepackage[margin=0.25in]{geometry}" + pkgs + "\\begin{document}\n"
+        equations = []
+        for expr in s:
+            equations.append("\\begin{dmath}\n" + sy.latex(expr) + "\n\\end{dmath}\n")
+        footer = "\\end{document}\n"
+        body = "".join(equations)
+        tmp.write(header + body + footer)
     repo = pathlib.Path(__file__).parent.parent.resolve()
     outdir = os.path.join(repo, "out")
-    out = os.path.join(repo, "out.html")
-    logger.info(f"tmp.name: {tempfile_path}")
-    with open(tempfile_path) as fin:
-        s = fin.read()
-        print(s)
-    p = subprocess.run(["npx", "katex", "-d", "-i", f"{tempfile_path}", "-o", f"{out}"], capture_output=True)
-    args = ["cp", f"{tempfile_path}", f"{outdir}", "&&", "cd", f"{outdir}", "&&", "pdflatex", f"{docname}.txt"]
-    logger.info(f"Cmd: {' '.join(args)}")
     p = subprocess.run(["cp", f"{tempfile_path}", f"{outdir}/"], capture_output=True)
-    logger.info(f"katex stdout: {p.stdout}")
-    logger.info(f"katex stderr {p.stderr}")
-    # p = subprocess.run(["cd", f"{outdir}"], capture_output=True)
-    logger.info(f"katex stdout: {p.stdout}")
-    logger.info(f"katex stderr {p.stderr}")
     p = subprocess.run(["pdflatex", "--output-directory", f"{outdir}", f"{docname}.txt"], capture_output=True)
-    logger.info(f"katex stdout: {p.stdout}")
-    logger.info(f"katex stderr {p.stderr}")
     pdf_path = os.path.join(outdir, f"{docname}.pdf")
-    # p = subprocess.run(["xdg-open", f"{pdf_path}"], capture_output=True)
