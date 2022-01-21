@@ -1,4 +1,4 @@
-# !/usr/bin/env python3
+#!/usr/bin/env python3
 import re
 import os
 import sys
@@ -568,71 +568,105 @@ def substitute_complex_symbols(f: sy.Expr, symbol_map: Dict[sy.Symbol, List[List
 
 
 @beartype
-def substitute_vector_symbols(f: sy.Expr, substitutions: List[Tuple[sy.Expr, sy.Expr]], symbol_map: Dict[sy.Symbol, List[List[sy.Symbol]]]) -> sy.Expr:
-    complex_f = substitute_complex_symbols(f, symbol_map)
+def substitute_vector_symbols(f: sy.Expr, substitutions: List[Tuple[sy.Symbol, sy.Expr]], symbol_map: Dict[sy.Symbol, List[List[sy.Symbol]]]) -> sy.Expr:
+    # complex_f = substitute_complex_symbols(f, symbol_map)
+    # katex(complex_f, "complex_f")
     sy_substitutions = []
     for src, tgt in substitutions:
-
-        # Remove all real-valued free symbols.
-        complex_src = substitute_complex_symbols(src, symbol_map)
-        complex_tgt = substitute_complex_symbols(tgt, symbol_map)
+        katex(src, "src")
+        katex(tgt, "tgt")
 
         # We want to construct a version of ``complex_src`` but only for the jth component.
         # e.g. complez_src == z + w (z, w are vectors).
         # free_symbols == [z, w].
         # So ``src_symbol`` is e.g. ``z``.
         dim = len(list(symbol_map.values())[0][0])
+        logger.info(f"Dim:{dim}")
 
         # For each dimension:
         for j in range(dim):
-            jth_src_component_substitutions = []
+            jth_src_component_re_substitutions = []
+            jth_src_component_im_substitutions = []
 
             # For each complex vector symbol:
-            for src_symbol in complex_src.free_symbols:
+            for src_symbol in src.free_symbols:
 
                 # Get its list of components.
                 # So ``zs`` is e.g. [z_1, z_2, z_3].
                 # Want to compute a list like [z_1 + w_1, z_2 + w_2, z_3 + w_3].
-                zs, _, _ = symbol_map[src_symbol]
+                _, x, y = symbol_map[src_symbol]
 
                 # Substitute symbol for its jth component.
-                jth_src_component_substitutions.append((src_symbol, zs[j]))
+                jth_src_component_re_substitutions.append((src_symbol, x[j]))
+                jth_src_component_im_substitutions.append((src_symbol, y[j]))
 
             # Actually do the substitution.
-            jth_component_complex_src = complex_src.subs(jth_src_component_substitutions)
+            re_jth_component_src = src.subs(jth_src_component_re_substitutions)
+            im_jth_component_src = src.subs(jth_src_component_im_substitutions)
 
             jth_tgt_component_substitutions = []
-            for tgt_symbol in complex_tgt.free_symbols:
-                zs, _, _ = symbol_map[tgt_symbol]
-                jth_tgt_component_substitutions.append((tgt_symbol, zs[j]))
-            jth_component_complex_tgt = complex_tgt.subs(jth_tgt_component_substitutions)
+            for tgt_symbol in tgt.free_symbols:
+                _, x, y = symbol_map[tgt_symbol]
+                jth_tgt_component_substitutions.append((tgt_symbol, x[j] + sy.I * y[j]))
+            jth_component_tgt = tgt.subs(jth_tgt_component_substitutions)
+            re_jth_tgt = sy.re(jth_component_tgt)
+            im_jth_tgt = sy.im(jth_component_tgt)
 
             # Add to list of sympy substitutions.
-            sy_substitutions.append((jth_component_complex_src, jth_component_complex_tgt))
+            sy_substitutions.append((re_jth_component_src, re_jth_tgt))
+            sy_substitutions.append((im_jth_component_src, im_jth_tgt))
 
-    subbed_f = complex_f.subs(sy_substitutions)
+    katex(sy_substitutions, "Sympy substitutions")
+    subbed_f = f.subs(sy_substitutions)
     katex(subbed_f)
     return subbed_f
 
 
 @beartype
 def is_sesquilinear_form(f: sy.Expr, symbol_map: Dict[sy.Symbol, List[List[sy.Symbol]]]) -> bool:
+    symbol_map = copy.deepcopy(symbol_map)
     assert len(symbol_map) == 2
     dim = len(list(symbol_map.values())[0][0])
     zz, ww = tuple(list(symbol_map.keys()))
-    x, _, _ = get_complex_vector_symbol_from_letter("x", dim)
-    y, _, _ = get_complex_vector_symbol_from_letter("y", dim)
-    z, _, _ = get_complex_vector_symbol_from_letter("z", dim)
-    w, _, _ = get_complex_vector_symbol_from_letter("w", dim)
-    assert isinstance(zz, sy.Expr)
-    assert isinstance(x, sy.Expr)
+
+    x, _, x_symbol_map = get_complex_vector_symbol_from_letter("x", dim)
+    y, _, y_symbol_map = get_complex_vector_symbol_from_letter("y", dim)
+    z, _, z_symbol_map = get_complex_vector_symbol_from_letter("z", dim)
+    w, _, w_symbol_map = get_complex_vector_symbol_from_letter("w", dim)
+
+    symbol_map.update(x_symbol_map)
+    symbol_map.update(y_symbol_map)
+    symbol_map.update(z_symbol_map)
+    symbol_map.update(w_symbol_map)
+
     fxyzw = substitute_vector_symbols(f, [(zz, x + y), (ww, z + w)], symbol_map)
     fxz = substitute_vector_symbols(f, [(zz, x), (ww, z)], symbol_map)
     fxw = substitute_vector_symbols(f, [(zz, x), (ww, w)], symbol_map)
     fyz = substitute_vector_symbols(f, [(zz, y), (ww, z)], symbol_map)
     fyw = substitute_vector_symbols(f, [(zz, y), (ww, w)], symbol_map)
+
+    katex(fxyzw, "fxyzw")
+    katex(fxyzw, "fxz")
+    katex(fxyzw, "fxw")
+
     rhs = fxz + fxw + fyz + fyw
-    result = sy.simplify(sy.solve(fxyzw - rhs))
+
+    result = sy.simplify(fxyzw - rhs)
+    katex(result, "sesquilinear result:")
+    assert result == sy.Integer(0)
+
+    """
+    solutions: List[Dict[sy.Expr, sy.Expr]] = sy.solve(fxyzw - rhs, dict=True)
+    katex(solutions)
+    if len(solutions) < 1:
+        return False
+
+    assert len(solutions) == 1
+    solution = solutions[0]
+    key, val = list(solutions[0].items())[0]
+    result = sy.simplify(key - val)
+    """
+
     return result == sy.Integer(0)
 
 
@@ -656,23 +690,26 @@ def run_experiment_with_fuzzed_parameters_a_b_p_q(
                     experiment(a, b, p, q)
 
 @beartype
-def katex(s: Union[sy.Expr, Iterable[sy.Expr]]) -> None:
+def katex(s: Union[sy.Expr, Iterable[sy.Expr]], label: Optional[str] = "") -> None:
     if not isinstance(s, Iterable):
         s = [s]
     docname = "expression"
+    latex_source_filename = f"{docname}.tex"
     tmpdir = tempfile.mkdtemp()
-    tempfile_path = os.path.join(tmpdir, f"{docname}.txt")
+    tempfile_path = os.path.join(tmpdir, f"{latex_source_filename}")
     latex_pkgs = ["breqn", "amsmath", "amsthm", "amssymb"]
     with open(tempfile_path, "w") as tmp:
         pkgs = "\n" + "\n".join([f"\\usepackage{{{pkg}}}" for pkg in latex_pkgs]) + "\n"
         header = "\\documentclass{article}[12pt]\n\\usepackage[margin=0.25in]{geometry}" + pkgs + "\\begin{document}\n"
         for expr in s:
-            KATEX_EQUATIONS.append("\\begin{dmath}\n" + sy.latex(expr) + "\n\\end{dmath}\n")
+            latex_label = f"\\texttt{{{label}}}\n"
+            KATEX_EQUATIONS.append(latex_label + "\\begin{dmath}\n" + sy.latex(expr) + "\n\\end{dmath}\n")
         footer = "\\end{document}\n"
         body = "".join(KATEX_EQUATIONS)
         tmp.write(header + body + footer)
     repo = pathlib.Path(__file__).parent.parent.resolve()
     outdir = os.path.join(repo, "out")
     p = subprocess.run(["cp", f"{tempfile_path}", f"{outdir}/"], capture_output=True)
-    p = subprocess.run(["pdflatex", "--output-directory", f"{outdir}", f"{docname}.txt"], capture_output=True)
+    p = subprocess.run(["pdflatex", "--output-directory", f"{outdir}", f"{latex_source_filename}"], capture_output=True)
+    # logger.info(f"LaTeX source: {os.path.join(outdir, latex_source_filename)}")
     pdf_path = os.path.join(outdir, f"{docname}.pdf")

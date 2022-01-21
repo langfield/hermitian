@@ -41,7 +41,9 @@ def test_polarize_one_dimensional() -> None:
     for sol in result:
         real_polarized_poly = polarized_poly.subs(list(sol.items()))
         simple_real_polarized_poly = sy.simplify(real_polarized_poly)
-        is_hermitian_form(simple_real_polarized_poly, symbol_map)
+        logger.info(f"Symbol map keys: {list(symbol_map.keys())}")
+        # is_hermitian_form(simple_real_polarized_poly, symbol_map)
+        is_hermitian_form(real_polarized_poly, symbol_map)
         katex([poly, polarized_poly, im, result, real_polarized_poly, simple_real_polarized_poly])
         # assert len(polarized_poly.free_symbols) == dim
     assert False
